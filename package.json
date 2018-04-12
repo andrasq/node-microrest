@@ -2,22 +2,10 @@
   "name": "microrest",
   "version": "0.0.0",
   "description": "tiny embeddable REST web framework",
-  "keywords": [
-    "micro",
-    "nano",
-    "framework",
-    "middleware",
-    "embeddable",
-    "fast"
-  ],
+  "keywords": ["micro", "nano", "framework", "middleware", "embeddable", "fast"],
   "license": "Apache-2.0",
-  "author": {
-    "name": "Andras"
-  },
-  "scripts": {},
-  "readme": "microrest\n=========\n\nExtremely small, extremely fast embeddable REST web framework.\nPerfect for adding a web API to an existing app.\n\n\nWORK IN PROGRESS\n\n\nRelated Work\n------------\n\n- [`microreq`](https://npmjs.com/package/microreq) - tiny web request convenience wrapper\n",
-  "readmeFilename": "README.md",
-  "_id": "microrest@0.0.0",
-  "_shasum": "9e94024d5193da4aac08f01edec0693edf528aa6",
-  "_from": "microrest@latest"
+  "author": "Andras",
+
+  "scripts": {
+  }
 }
