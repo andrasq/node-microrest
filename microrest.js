@@ -147,10 +147,14 @@ function sendResponse( err, res, statusCode, body, headers ) {
 function repeatUntil( fn, callback ) {
     var depth = 0;
     var callCount = 0, returnCount = 0;
+
+    repeat();
+
     function repeat() {
         callCount++;
         try { fn(nextCall) } catch(err) { nextCall(err) }
     }
+
     function nextCall(err, done) {
         if (returnCount++ > callCount) {
             // probably too late to return an error response, but at least warn
@@ -162,7 +166,22 @@ function repeatUntil( fn, callback ) {
         if (err || err === false || done) return process.nextTick(callback, err);
         if (depth++ < 10) repeat(); else { depth = 0; process.nextTick(repeat) }
     }
-    repeat();
+}
+
+function tryFunc( fn, cb ) {
+    try { return fn(cb) }
+    catch (e) { cb && cb(e) || console.error('microrest: repeatWhile test threw:', e, fn && fn.toString()) }
+}
+function repeatWhile( test, fn, callback ) {
+    var returned = 0;
+    if (tryFunc(test)) {
+        tryFunc(fn, function(err) {
+            if (err) return callback(err);
+            if (returned++) return callback(new Error('microrest: callback alredy called'));
+            process.nextTick(repeatWhile, test, fn, callback);
+        })
+    }
+    else callback();
 }
 
 // run the middleware stack until one returns next(err) or next(false)
@@ -250,11 +269,21 @@ function toStruct( x ) {
 
 timeit = require('qtimeit');
 
-timeit(100, function(cb) {
+console.log("AR: Start");
+
+if (1) timeit(100, function(cb) {
     var x = 0;
     repeatUntil(function(next) { next(null, ++x >= 1e4) }, cb)
     // setImmediate: ...
     // nextTick: 23m/s len 10, 27m/s len 20, 30m/s len 40
+}, function() {
+    console.log("AR: Done.")
+});
+
+if (0) timeit(100, function(done) {
+    var x = 0;
+    repeatWhile(function(){ return x++ < 1e4 }, function(next){ next() }, done)
+    // simple repeatWhile: 6.5m/s
 }, function() {
     console.log("AR: Done.")
 });
