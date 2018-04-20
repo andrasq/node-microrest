@@ -1,291 +1,181 @@
 /**
  * minimal tiny rest server
+ *
+ * 2018-04-12 - AR.
  */
 
-var util = require('util');
+'use strict';
+
 var http = require('http');
+var https = require('https');
 
-module.exports = {
-    createServer: createServer,
+module.exports = _createServer;
+module.exports.Rest = Rest;
+module.exports.HttpError = HttpError;
+module.exports.createServer = _createServer;
 
-    onRequest: onRequest,
-    readRequest: readRequest,
-    sendResponse: sendResponse,
-    processRequest: processRequest,
+// TODO: return an app with methods listen(), addStep(), addRoute()
+// TODO: maybe not even create a server?
 
-    HttpError: HttpError,
-    MicroREST: MicroREST,
-    BasicRouter: BasicRouter,
+function _createServer( options, callback ) {
+    options = options || {};
+    if (!callback && typeof options === 'function') { callback = options; options = {} };
+
+    var rest = new Rest();
+    var server = (options.protocol === 'https:')
+        ? https.createServer(options, rest.onRequest)
+        : http.createServer(rest.onRequest);
+    server._microRest = rest;
+
+    var port = options.port || 0;
+    server.once('listening', onListening);
+    server.once('error', onError);
+    if (options.port !== undefined || options.anyPort) {
+        // return before listen() called, so can mock it
+        process.nextTick(function(){ server.listen(port) });
+    }
+    return server;
+
+    function onListening() {
+        server.removeListener('error', onError);
+        var addr = server.address && server.address();
+        if (callback) callback(null, { pid: process.pid, port: port || addr && addr.port || 0 });
+    }
+    function onError(err) {
+        if (err.code === 'EADDRINUSE' && port && (options.tryNextPort || options.anyPort)) {
+            server.once('error', onError);
+            port = options.tryNextPort ? port + 1 : 0;
+            server.listen(port);
+        }
+        else if (callback) callback(err);
+    }
 }
+
+function _createHandler( options ) {
+    var rest = new Rest(options);
+    var handler = rest.onRequest;
+    handler.rest = rest;
+
+    handler.use = function use(mw) { mw.length === 3 ? rest.addRoute('use', mw) : rest.addRoute('err', mw) };
+
+    var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
+    httpMethods.forEach(function(name) {
+        var fn = function( path, mw ) { return rest.addRoute(path, name.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
+        handler[name] = Object.defineProperty(fn, 'name', { writable: true });
+        fn.name = name;
+    })
+    handler.del = Rest.prototype.delete;
+
+    return handler;
+}
+
+// ----------------------------------------------------------------
 
 function HttpError( statusCode, debugMessage ) {
-    Error.call(this, http.STATUS_CODES[statusCode]);
-    this.statusCode = statusCode;
-    this.debugMessage = debugMessage;
-}
-util.inherits(HttpError, Error);
-
-function createServer( http, options, handler, callback ) {
-    var server = http.createServer(options, onRequest);
+    var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Server Error'));
+    err.statusCode = statusCode || 500;
+    err.debug = debugMessage;
+    return err;
 }
 
-function MicroREST( options ) {
-    this.NotRoutedHttpCode = 404;
-    this._router = options.router || new BasicRouter();
-    this._onRequest = null;
+function sliceMwArgs( dest, args, offset ) {
+    for (var i = offset; i < args.length; i++) dest.push(args[i]);
+    return (dest.length === 1 && Array.isArray(dest[0])) ? dest[0] : dest;
 }
 
-MicroREST.prototype.addStep = function addStep( where, fn ) {
-    if (typeof fn !== 'function') throw new Error('');
-    (where[0] === '/') ? this._router.addRoute(where, '*', fn) : this._router.addStep(where, fn);
-    return this;
+function NonRouter( ) {
+    this.addRoute = function(path, method, mw) { new Error('router does not support mw') };
+    this.removeRoute = function(path, method) { return null };
+    this.lookupRoute = function(path, method) { return null };
+    this.runRoute = function(rest, req, res, next) {
+        rest.readBody(req, res, function(err) {
+            if (!err) try { rest.processRequest(rest, req, res, next) } catch (e) { err = e }
+            if (err) rest.sendResponse(req, res, new rest.HttpError(500, err.message));
+        })
+    };
 }
-
-MicroREST.prototype.addRoute = function addRoute( path, method, mw ) {
-    if (arguments.length >= 4) throw new Error('addRoute is not varargs, pass an array');
-    var mwSteps = Array.isArray(mw) ? mw : [ mw ];
-    for (var i=0; i<mwSteps.length; i++) {
-        if (typeof mwSteps[i] !== 'function') throw new Error('middleware step [' + i + '] is not a function');
-    }
-    this._router.addRoute(path, method, mwSteps);
-    return this;
-}
-
-MicroREST.prototype = toStruct(MicroREST.prototype);
 
 // ----------------------------------------------------------------
 
-function BasicRouter( options ) {
-    this._steps = {
-        pre: new Array(),       // steps run before route is mapped
-        use: new Array(),       // steps run for all mapped routes
-        post: new Array(),      // steps run after all other mw steps
-        err: new Array(),       // steps run to handle mw errors
-    };
-    this.routes = {};           // map of [path][method] of routes
-    this.regexRoutes = new Array();
+function Rest( options ) {
+    options = options || {};
+
+    // TODO: maybe create an app if invoked without `new` ?
+    this.NotRoutedHttpCode = options.NotRoutedHttpCode || 404;
+    this.HttpError = HttpError;
+
+// TODO: what should be the default?  buffers (null) are more versatile, strings are much faster
+    this.encoding = options.encoding || null;
+    this.bodySizeLimit = options.bodySizeLimit || 10000000;
+    this.router = options.router || new NonRouter();
+
+    this.processRequest = options.processRequest || function(rest, req, res, next) {
+        this.sendResponse(req, res, new this.HttpError(404, 'no paths are routed')) };
+    this.onError = options.onError || function onError(err, req, res, next) {
+        this.sendResponse(req, res, err) };
+
+    var self = this;
+    // onRequest is a function bound to self that can be used as an http server 'request' listener
+    this.onRequest = function(req, res, next) {
+        try { req.setEncoding(self.encoding); return self.router.runRoute(self, req, res, next || noop) }
+        catch (e) { self.sendResponse(req, res, new self.HttpError(500, e.message)) }
+    }
 }
 
-BasicRouter.prototype.addStep = function addStep( where, fn ) {
-    if (!this._steps[where]) throw new Error(where + ': unknown mw step');
-    if (typeof mw !== 'function') throw new Error('mw step not a function');
-    if (where === 'err' && fn.length !== 4) throw new Error('mw err steps take 4 args');
-    this._steps[where].push(mw);
+Rest.prototype.removeRoute = function removeRoute( path, method ) {
+    return this.router.remoteRoute(path, method);
+}
+Rest.prototype.addRoute = function addRoute( path, method, mw /* VARARGS */ ) {
+    var mwOffset = (typeof method === 'string') ? 2 : (method = '_ANY_', 1);
+    var mwSteps = sliceMwArgs(new Array(), arguments, mwOffset);
+    for (var i=0; i<mwSteps.length; i++) if (typeof mwSteps[i] !== 'function') throw new Error('middleware step [' + i + '] is not a function');
+    (path[0] === '/') ? this.router.addRoute(path, method, mwSteps) : this.router.addRoute(path, '_ANY_', mwSteps);
+    return this;
 }
 
-BasicRouter.prototype.addRoute = function addRoute( path, method, mw ) {
-    this.routes[path] = this.routes[path] || {};
-    if (path.indexOf('/:') < 0) this.routes[path][method] = this.routes[path][method] || mw;
-    else throw new Error('path parameters not supported (yet) in router');
-    // TODO: handle regexp routes too
-    // mapping = makeCapturingRegex(method + '.' + path);  // map has fields { regex, names, mw }
-    // mapping.mw = mw;
-    // this.regexRoutes.push(mapping);
-}
+// FIXME: move to mw
+Rest.prototype.readBody = function readBody( req, res, next ) {
+    if (req.body !== undefined) return next();
+    var bodySizeLimit = this.bodySizeLimit;
 
-BasicRouter.prototype.lookupRoute = function lookupRoute( path, method ) {
-    var route = {
-        pre: this._steps.pre,
-        mw: this.routes[path] && (this.routes[path][method] || this.routes[path]['*']),
-        post: this._steps.post,
-        err: this._steps.err,
-        params: {},
-    };
-
-    var methodPath = method + '.' + path;
-    var starPath = '*.' + path;
-    if (!route.mw) for (var i=0; i<this.regexRoutes.length; i++) {
-        var rr = this.regexRoutes[i];
-        var match = rr.regex.exec(methodPath) || rr.regex.exec(starPath);
-        if (!match) continue;
-
-        route.mw = rr.mw;
-        for (var i=0; i<rr.names.length; i++) if (names[i]) route.params[rr.names[i]] = match[i];
-        break;
+    var bodySize = 0, body = '', chunks = new Array();
+    function gatherChunk(chunk) {
+        if (chunk && (bodySize += chunk.length <= bodySizeLimit)) (typeof chunk === 'string') ? body += chunk : chunks.push(chunk);
+// TODO: maybe req.socket.end() to not transfer the rest of the data?
     }
 
-    return route.mw ? route : null;
-}
-
-function traverse2d( map, fn ) {
-    for (var d1 in map) for (var d2 in map[d1]) fn(d1, d2);
-}
-
-BasicRouter.prototype = toStruct(BasicRouter.prototype);
-
-// ----------------------------------------------------------------
-
-function readRequest( req, next ) {
-    // TODO: decode query params
-    // TODO: decode body params
-    var chunks = new Array();
-    req.on('data', function(chunk) { chunks.push(chunk) })
-    req.on('error', function(err) { next(err) })
+    req.on('data', gatherChunk)
+    req.on('error', function(err) { next(err); })
     req.on('end', function() {
-        var body = (!chunks.length || typeof chunks[0] === 'string')
-            ? (chunks.length > 1 ? chunks.join('') : chunks[0] || '')
-            : (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0] || new Buffer(''))
-            // TODO: if res.setEncoding but no chunks, how to know what to return?
+        if (bodySize > bodySizeLimit) return next(new this.HttpError(400, 'max body size exceeded'));
+        var body = body || (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0] || new Buffer(''))
+        if (body.length === 0 && req._readableState && req._readableState.encoding) body = '';
+        req.body = body;
         next(null, body);
     })
+    gatherChunk(req.read())
 }
 
-function sendResponse( err, res, statusCode, body, headers ) {
+Rest.prototype.sendResponse = function sendResponse( req, res, err, statusCode, body, headers ) {
     if (!err && typeof body !== 'string' && !Buffer.isBuffer(body)) {
         try { body = JSON.serialize(body) }
-        catch (e) { err = new HttpError(500, 'unable to json encode response: ' + e.message) }
+        catch (e) { err = new this.HttpError(500, 'unable to json encode response: ' + e.message) }
     }
     if (err) {
-        statusCode = err.statusCode || 500;
-        body = JSON.serialize({ error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debugMessage || '') });
+        statusCode = statusCode || err.statusCode || 500;
+        body = JSON.stringify({ error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '') });
         headers = undefined;
     }
     try { res.writeHead(statusCode, headers); res.end(body) }
-    catch (e) { console.error('%s -- microrest: res write error: %s', e.message) }
+    catch (e) { console.error('%s -- microrest: unable to send response %s', new Date().toISOString(), (err || e).message); }
 }
 
-function repeatUntil( fn, callback ) {
-    var depth = 0;
-    var callCount = 0, returnCount = 0;
-
-    repeat();
-
-    function repeat() {
-        callCount++;
-        try { fn(nextCall) } catch(err) { nextCall(err) }
-    }
-
-    function nextCall(err, done) {
-        if (returnCount++ > callCount) {
-            // probably too late to return an error response, but at least warn
-            console.error('%s -- microrest: mw callback already called', new Date().toISOString());
-            return;
-        }
-        // stop mw stack on next(false)
-        // return on nextTick to not feed callback errors back into the try/catch above
-        if (err || err === false || done) return process.nextTick(callback, err);
-        if (depth++ < 10) repeat(); else { depth = 0; process.nextTick(repeat) }
-    }
-}
-
-function tryFunc( fn, cb ) {
-    try { return fn(cb) }
-    catch (e) { cb && cb(e) || console.error('microrest: repeatWhile test threw:', e, fn && fn.toString()) }
-}
-function repeatWhile( test, fn, callback ) {
-    var returned = 0;
-    if (tryFunc(test)) {
-        tryFunc(fn, function(err) {
-            if (err) return callback(err);
-            if (returned++) return callback(new Error('microrest: callback alredy called'));
-            process.nextTick(repeatWhile, test, fn, callback);
-        })
-    }
-    else callback();
-}
-
-// run the middleware stack until one returns next(err) or next(false)
-function runMw( steps, req, res, callback ) {
-    var ix = 0;
-    repeatUntil(runEachStep, callback);
-    function runEachStep(next) {
-        if (ix >= steps.length) return next(null, 'done');
-        steps[ix++](req, res, next);
-    }
-}
-
-// pass err to each error handler until one of them does not return error
-function runErrorMw( steps, err, req, res, callback ) {
-    var ix = 0;
-    repeatUntil(tryEachHandler, callback);
-    function tryEachHandler(next) {
-        if (ix >= steps.length) return next(err, 'done');
-        steps[ix++](err, req, res, function(declined) { declined ? next() : next(null, 'done') });
-    }
-}
-
-function onRequest( req, res, router ) {
-    try {
-        processRequest(req.url, req.method, req, res, router);
-    } catch (err) {
-        sendResponse(new HttpError(500, e.message), res);
-    }
-}
-
-function processRequest( path, method, req, res, router ) {
-    var route = router.lookupRoute();
-    var preSteps = route.pre;
-    var postSteps = route.post;
-    var errSteps = route.err;
-    notRoutedCode = 404;
-
-    // TODO: there ought to be a way of massaging all this into a runMw stack...
-
-    // pre steps are always run, before call is routed
-    req.once('end', function() { state.reqEnd = true });
-    runMw(preSteps, runReadRequest);
-
-    function runReadRequest(err) {
-        if (err) return runPostSteps(err);
-        state.reqEnd ? runMwSteps(null, '') : readRequest(req, runMwSteps);
-    }
-
-    // the call middleware stack includes the relevant 'use' and route steps
-    function runMwSteps(err, body) {
-        if (err) return runPostSteps(err);
-        var mwRoute = router.lookupRoute(method, path, req);
-        if (!mwRoute) return runPostSteps(new HttpError(notRoutedCode, util.format('%s %s is not routed', method, path)));
-        // TODO: for (var k in mwRoute.params) req.params[k] = mwRoute.param[k];
-        runMw(mwRoute.mw || [], runPostSteps);
-    }
-
-    // post steps are always run, after middleware stack (even if error or call was not routed)
-    function runPostSteps(err1) {
-        runMw(postSteps, function(err2) {
-            if (err1 || err2) runErrorSteps(err1 || err2);
-            if (err2) console.error('%s -- microrest: post mw error:', err);
-            
-            // do not end the response, poorly written middleware could have callbacks pending
-            // TODO: time out open responses
-            // TODO: should post mw errors be handled with the user-installed handlers?
-        })
-    }
-
-    function runErrorSteps(err) {
-        if (err) runErrorMw(errSteps, err, req, res, function(err) {
-            if (err && !res.headersSent) sendResponse(new HttpError(500, err.message), res);
-            else if (err) console.error('%s -- microrest: unhandled mw error', err);
-        })
-    }
-}
+Rest.prototype = toStruct(Rest.prototype);
 
 function toStruct( x ) {
     toStruct.prototype = x;
     return toStruct.prototype;
 }
 
-
-// /** quicktest:
-
-timeit = require('qtimeit');
-
-console.log("AR: Start");
-
-if (1) timeit(100, function(cb) {
-    var x = 0;
-    repeatUntil(function(next) { next(null, ++x >= 1e4) }, cb)
-    // setImmediate: ...
-    // nextTick: 23m/s len 10, 27m/s len 20, 30m/s len 40
-}, function() {
-    console.log("AR: Done.")
-});
-
-if (0) timeit(100, function(done) {
-    var x = 0;
-    repeatWhile(function(){ return x++ < 1e4 }, function(next){ next() }, done)
-    // simple repeatWhile: 6.5m/s
-}, function() {
-    console.log("AR: Done.")
-});
-
-/**/
+function noop( ) { }
+function noopMw( req, res, next ) { next() }
