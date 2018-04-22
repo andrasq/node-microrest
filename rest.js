@@ -9,15 +9,13 @@
 var http = require('http');
 var https = require('https');
 
-module.exports = _createServer;
+module.exports = createServer;
 module.exports.Rest = Rest;
 module.exports.HttpError = HttpError;
-module.exports.createServer = _createServer;
+module.exports.createServer = createServer;
+module.exports.createHandler = createHandler;
 
-// TODO: return an app with methods listen(), addStep(), addRoute()
-// TODO: maybe not even create a server?
-
-function _createServer( options, callback ) {
+function createServer( options, callback ) {
     options = options || {};
     if (!callback && typeof options === 'function') { callback = options; options = {} };
 
@@ -51,7 +49,7 @@ function _createServer( options, callback ) {
     }
 }
 
-function _createHandler( options ) {
+function createHandler( options ) {
     var rest = new Rest(options);
     var handler = rest.onRequest;
     handler.rest = rest;
@@ -72,7 +70,7 @@ function _createHandler( options ) {
 // ----------------------------------------------------------------
 
 function HttpError( statusCode, debugMessage ) {
-    var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Server Error'));
+    var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Error'));
     err.statusCode = statusCode || 500;
     err.debug = debugMessage;
     return err;
@@ -99,41 +97,52 @@ function NonRouter( ) {
 
 function Rest( options ) {
     options = options || {};
+    var self = this;
 
-    // TODO: maybe create an app if invoked without `new` ?
     this.NotRoutedHttpCode = options.NotRoutedHttpCode || 404;
     this.HttpError = HttpError;
 
-// TODO: what should be the default?  buffers (null) are more versatile, strings are much faster
-    this.encoding = options.encoding || null;
-    this.bodySizeLimit = options.bodySizeLimit || 10000000;
+    this.encoding = options.encoding !== undefined ? options.encoding : 'utf8';
+    this.bodySizeLimit = options.bodySizeLimit || Infinity;
+
+    this.mw = options.mw || {};
     this.router = options.router || new NonRouter();
+    if (!this.router) this.removeRoute = function() {};
+    if (!this.router) this.addRoute = function() { throw new Error('mw routing not supported') };
+    if (!this.router) this.lookupRoute = function() { return null };
 
-    this.processRequest = options.processRequest || function(rest, req, res, next) {
-        this.sendResponse(req, res, new this.HttpError(404, 'no paths are routed')) };
+    this.processRequest = options.processRequest;
     this.onError = options.onError || function onError(err, req, res, next) {
-        this.sendResponse(req, res, err) };
+        self.sendResponse(req, res, new self.HttpError(500, err.message));
+    };
 
-    var self = this;
     // onRequest is a function bound to self that can be used as an http server 'request' listener
     this.onRequest = function(req, res, next) {
-        try { req.setEncoding(self.encoding); return self.router.runRoute(self, req, res, next || noop) }
-        catch (e) { self.sendResponse(req, res, new self.HttpError(500, e.message)) }
+        req.setEncoding(self.encoding);
+        try {
+            if (self.router) return self.router.runRoute(self, req, res, next);
+            self.readBody(req, res, function(err, body) {
+                if (err) throw err;
+                if (!self.processRequest) throw new self.HttpError(500, 'no router or processRequest configured');
+                self.processRequest(req, res, body);
+            })
+        } catch (e) { self.sendResponse(req, res, new self.HttpError(500, e.message)) }
     }
 }
 
+Rest.prototype.lookupRoute = function lookupRoute( path, method ) {
+    return this.router.lookupRoute(path, method);
+}
 Rest.prototype.removeRoute = function removeRoute( path, method ) {
     return this.router.remoteRoute(path, method);
 }
 Rest.prototype.addRoute = function addRoute( path, method, mw /* VARARGS */ ) {
-    var mwOffset = (typeof method === 'string') ? 2 : (method = '_ANY_', 1);
-    var mwSteps = sliceMwArgs(new Array(), arguments, mwOffset);
-    for (var i=0; i<mwSteps.length; i++) if (typeof mwSteps[i] !== 'function') throw new Error('middleware step [' + i + '] is not a function');
-    (path[0] === '/') ? this.router.addRoute(path, method, mwSteps) : this.router.addRoute(path, '_ANY_', mwSteps);
-    return this;
+    mw = sliceMwArgs(new Array(), arguments, typeof method === 'string' ? 2 : 1);
+    method = typeof method === 'string' ? method : '_ANY_';
+    for (var i=0; i<mw.length; i++) if (typeof mw[i] !== 'function') throw new Error('middleware step [' + i + '] is not a function');
+    (path[0] === '/') ? this.router.addRoute(path, method, mw) : this.router.addRoute(path, '_ANY_', mw);
 }
 
-// FIXME: move to mw
 Rest.prototype.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
     var bodySizeLimit = this.bodySizeLimit;
@@ -163,7 +172,7 @@ Rest.prototype.sendResponse = function sendResponse( req, res, err, statusCode, 
     }
     if (err) {
         statusCode = statusCode || err.statusCode || 500;
-        body = JSON.stringify({ error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '') });
+        body = JSON.stringify({ error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '-') });
         headers = undefined;
     }
     try { res.writeHead(statusCode, headers); res.end(body) }
