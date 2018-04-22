@@ -1,6 +1,9 @@
 /**
  * minimal tiny rest server
  *
+ * Copyright (C) 2018 Andras Radics
+ * Licensed under the Apache License, Version 2.0
+ *
  * 2018-04-12 - AR.
  */
 
@@ -9,7 +12,7 @@
 var http = require('http');
 var https = require('https');
 
-module.exports = createServer;
+module.exports = createHandler;
 module.exports.Rest = Rest;
 module.exports.HttpError = HttpError;
 module.exports.createServer = createServer;
@@ -23,7 +26,8 @@ function createServer( options, callback ) {
     var server = (options.protocol === 'https:')
         ? https.createServer(options, rest.onRequest)
         : http.createServer(rest.onRequest);
-    server._microRest = rest;
+    server._rest = rest;
+    server._error = null;
 
     var port = options.port || 0;
     server.once('listening', onListening);
@@ -37,15 +41,17 @@ function createServer( options, callback ) {
     function onListening() {
         server.removeListener('error', onError);
         var addr = server.address && server.address();
-        if (callback) callback(null, { pid: process.pid, port: port || addr && addr.port || 0 });
+        if (callback) callback(null, { pid: process.pid, port: port || addr && addr.port });
     }
     function onError(err) {
         if (err.code === 'EADDRINUSE' && port && (options.tryNextPort || options.anyPort)) {
             server.once('error', onError);
-            port = options.tryNextPort ? port + 1 : 0;
-            server.listen(port);
+            // trying port 0 after 1337 reuses the 1337, so try ports in order
+            port += 1;
+            setImmediate(function() { server.listen(port) });
         }
         else if (callback) callback(err);
+        else server._error = err;
     }
 }
 
@@ -55,7 +61,6 @@ function createHandler( options ) {
     handler.rest = rest;
 
     handler.use = function use(mw) { mw.length === 3 ? rest.addRoute('use', mw) : rest.addRoute('err', mw) };
-
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     httpMethods.forEach(function(name) {
         var fn = function( path, mw ) { return rest.addRoute(path, name.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
@@ -69,28 +74,17 @@ function createHandler( options ) {
 
 // ----------------------------------------------------------------
 
-function HttpError( statusCode, debugMessage ) {
+function HttpError( statusCode, debugMessage, details ) {
     var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Error'));
     err.statusCode = statusCode || 500;
     err.debug = debugMessage;
+    err.details = details;
     return err;
 }
 
 function sliceMwArgs( dest, args, offset ) {
     for (var i = offset; i < args.length; i++) dest.push(args[i]);
     return (dest.length === 1 && Array.isArray(dest[0])) ? dest[0] : dest;
-}
-
-function NonRouter( ) {
-    this.addRoute = function(path, method, mw) { new Error('router does not support mw') };
-    this.removeRoute = function(path, method) { return null };
-    this.lookupRoute = function(path, method) { return null };
-    this.runRoute = function(rest, req, res, next) {
-        rest.readBody(req, res, function(err) {
-            if (!err) try { rest.processRequest(rest, req, res, next) } catch (e) { err = e }
-            if (err) rest.sendResponse(req, res, new rest.HttpError(500, err.message));
-        })
-    };
 }
 
 // ----------------------------------------------------------------
@@ -106,85 +100,105 @@ function Rest( options ) {
     this.bodySizeLimit = options.bodySizeLimit || Infinity;
 
     this.mw = options.mw || {};
-    this.router = options.router || new NonRouter();
-    if (!this.router) this.removeRoute = function() {};
-    if (!this.router) this.addRoute = function() { throw new Error('mw routing not supported') };
-    if (!this.router) this.lookupRoute = function() { return null };
+    this.router = options.router;
 
     this.processRequest = options.processRequest;
-    this.onError = options.onError || function onError(err, req, res, next) {
+    this.onError = options.onError || function onError( err, req, res, next ) {
         self.sendResponse(req, res, new self.HttpError(500, err.message));
+        next();
     };
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
-    this.onRequest = function(req, res, next) {
-        req.setEncoding(self.encoding);
-        try {
-            if (self.router) return self.router.runRoute(self, req, res, next);
-            self.readBody(req, res, function(err, body) {
-                if (err) throw err;
-                if (!self.processRequest) throw new self.HttpError(500, 'no router or processRequest configured');
-                self.processRequest(req, res, body);
-            })
-        } catch (e) { self.sendResponse(req, res, new self.HttpError(500, e.message)) }
-    }
+    this.onRequest = function(req, res) { return self._onRequest(req, res); }
 }
 
+
 Rest.prototype.lookupRoute = function lookupRoute( path, method ) {
-    return this.router.lookupRoute(path, method);
+    return this.router && this.router.lookupRoute(path, method) || null;
 }
 Rest.prototype.removeRoute = function removeRoute( path, method ) {
-    return this.router.remoteRoute(path, method);
+    return this.router && this.router.removeRoute(path, method) || null;
 }
 Rest.prototype.addRoute = function addRoute( path, method, mw /* VARARGS */ ) {
     mw = sliceMwArgs(new Array(), arguments, typeof method === 'string' ? 2 : 1);
     method = typeof method === 'string' ? method : '_ANY_';
     for (var i=0; i<mw.length; i++) if (typeof mw[i] !== 'function') throw new Error('middleware step [' + i + '] is not a function');
+    if (!this.router) throw new this.HttpError('mw routing not supported');
     (path[0] === '/') ? this.router.addRoute(path, method, mw) : this.router.addRoute(path, '_ANY_', mw);
+    return this;
+}
+
+Rest.prototype._onRequest = function _onRequest( req, res ) {
+    var self = this;
+
+    // TODO: inefficient to create multiple bound functions on every request...
+    // try to factor out state vars
+
+    try {
+        req.setEncoding(self.encoding);
+        if (self.router) return self.router.runRoute(self, req, res, returnError);
+        self.readBody(req, res, function(err, body) {
+            if (err) return returnError(err);
+            if (!self.processRequest) return returnError(new self.HttpError(500, 'no router or processRequest configured'));
+            self.processRequest(req, res, body);
+        })
+    } catch (e) { returnError(e) }
+    function returnError(err) {
+        try { if (err) self.onError(err, req, res, function(){}) }
+        catch (e2) { console.error('%s -- microrest: onError error:', new Date().toISOString(), e2) }
+    }
 }
 
 Rest.prototype.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
-    var bodySizeLimit = this.bodySizeLimit;
+    var state = { req: req, res: res, next: next, rest: this, bodySize: 0, body: '', chunks: new Array() };
+    this._doReadBody(state);
+}
+Rest.prototype._doReadBody = function _doReadBody( state ) {
+    state.req.on('data', onData);
+    state.req.on('error', onError);
+    state.req.on('end', onEnd);
+    onData(state.req.read());
 
-    var bodySize = 0, body = '', chunks = new Array();
-    function gatherChunk(chunk) {
-        if (chunk && (bodySize += chunk.length <= bodySizeLimit)) (typeof chunk === 'string') ? body += chunk : chunks.push(chunk);
-// TODO: maybe req.socket.end() to not transfer the rest of the data?
+    function onData(chunk) {
+        // TODO: fast-path discard the rest of the input without reading it all
+        if (chunk && (state.bodySize += chunk.length) > state.rest.bodySizeLimit) ; else
+        if (chunk) (typeof chunk === 'string' ? state.body += chunk : state.chunks.push(chunk))
     }
-
-    req.on('data', gatherChunk)
-    req.on('error', function(err) { next(err); })
-    req.on('end', function() {
-        if (bodySize > bodySizeLimit) return next(new this.HttpError(400, 'max body size exceeded'));
-        var body = body || (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0] || new Buffer(''))
-        if (body.length === 0 && req._readableState && req._readableState.encoding) body = '';
-        req.body = body;
-        next(null, body);
-    })
-    gatherChunk(req.read())
+    function onError(err) {
+        state.next(err);
+    }
+    function onEnd() {
+        if (state.bodySize > state.rest.bodySizeLimit) return state.next((new state.rest.HttpError(400, 'max body size exceeded')), 1);
+        var body = state.body || (state.chunks.length > 1 ? Buffer.concat(state.chunks) : state.chunks[0] || new Buffer(''))
+        if (body.length === 0 && state.req._readableState && state.req._readableState.encoding) body = '';
+        state.req.body = body;
+        state.next(null, body);
+    }
 }
 
 Rest.prototype.sendResponse = function sendResponse( req, res, err, statusCode, body, headers ) {
     if (!err && typeof body !== 'string' && !Buffer.isBuffer(body)) {
-        try { body = JSON.serialize(body) }
-        catch (e) { err = new this.HttpError(500, 'unable to json encode response: ' + e.message) }
+        var json = tryJsonEncode(body);
+        if (! (json instanceof Error)) body = json;
+        else err = new this.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body));
     }
     if (err) {
         statusCode = statusCode || err.statusCode || 500;
-        body = JSON.stringify({ error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '-') });
+        body = { error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '') };
+        if (err.details) body.details = '' + (err.details);
+        body = JSON.stringify(body);
         headers = undefined;
     }
-    try { res.writeHead(statusCode, headers); res.end(body) }
-    catch (e) { console.error('%s -- microrest: unable to send response %s', new Date().toISOString(), (err || e).message); }
+    var err2 = tryWriteResponse(res, statusCode, headers, body);
+    if (err2) console.error('%s -- microrest: unable to send response %s', new Date().toISOString(), err2.message);
+
+    function tryJsonEncode( body ) { try { return JSON.stringify(body) } catch (err) { return err } }
+    function tryWriteResponse( res, scode, hdr, body ) { try { res.writeHead(scode || 200, hdr); res.end(body) } catch (err) { return err } }
 }
 
 Rest.prototype = toStruct(Rest.prototype);
 
 function toStruct( x ) {
-    toStruct.prototype = x;
-    return toStruct.prototype;
+    return toStruct.prototype = x;
 }
-
-function noop( ) { }
-function noopMw( req, res, next ) { next() }
