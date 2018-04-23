@@ -15,6 +15,19 @@ WORK IN PROGRESS
     }
 
 
+Benchmark
+---------
+
+    qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50
+    platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
+    arch=ia32 mhz=4384 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
+    name      speed           rate
+    restify     137 ops/sec   1000 >>>>>
+    express     192 ops/sec   1399 >>>>>>>
+    rest        357 ops/sec   2605 >>>>>>>>>>>>>
+    http        375 ops/sec   2730 >>>>>>>>>>>>>>
+
+
 Api
 ---
 
@@ -59,8 +72,9 @@ Options:
 ### rest.createHandler( [options] )
 
 This is the function that implements `rest()`.
+Returns a function `handler(req, res, [next])`.
 
-### Rest( [options] )
+### new rest.Rest( [options] )
 
 Rest instance implementation class, called by createHandler() and createServer().
 
@@ -78,7 +92,7 @@ Properties:
 - `router` - the provided router, if any.
 
 Helper methods:
-- `HttpError(statusCode, debugMessage, details)` -
+- `HttpError(statusCode, debugMessage, details)` - http error builder, returns instanceof Error.
 - `readBody(req, res, next)` - function to read the request body from the `req` object.
    Calls `next(err, body)`.  Body is also set on req as `req.body`.
 - `processRequest(req, res, next, body)` - function to handle the request if
