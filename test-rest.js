@@ -251,8 +251,8 @@ module.exports = {
                     var spy2 = t.spy(this.rest, 'onError');
                     this.rest.onRequest(mockReq(), mockRes());
                     t.ok(spy.called);
-                    t.ok(spy.args[0][2] instanceof Error);
-                    t.ok(spy.args[0][2].debug == 'runRoute error');
+                    t.ok(spy.args[0][3] instanceof Error);
+                    t.ok(spy.args[0][3].debug == 'runRoute error');
                     t.ok(spy2.called);
                     t.done();
                 },
@@ -267,6 +267,20 @@ module.exports = {
                         t.done();
                     }, 3);
                 },
+            },
+        },
+
+        'onError': {
+            'should log sendResponse errors': function(t) {
+                var rest = new Rest();
+                var res = mockRes();
+                t.stubOnce(res, 'writeHead').throws(new Error('mock writeHead error'));
+                var spy = t.stubOnce(process.stderr, 'write');
+                rest.onError(new Error('mock error'), mockReq(), res, noop);
+                t.ok(spy.called);
+                t.contains(spy.args[0][0], 'unable to send response');
+                t.contains(spy.args[0][0], 'mock writeHead error');
+                t.done();
             },
         },
     },
@@ -608,19 +622,19 @@ module.exports = {
             'should write status code, headers and body': function(t) {
                 var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, null, null, 'mock body', { 'my-header-1': 1 });
+                this.rest.sendResponse(mockReq(), this.res, noop, null, null, 'mock body', { 'my-header-1': 1 });
                 t.deepEqual(spyHead.args[0], [200, { 'my-header-1': 1}]);
                 t.deepEqual(spyEnd.args[0], ['mock body']);
 
                 var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, null, null, new Buffer('mock body'), { 'my-header-1': 1 });
+                this.rest.sendResponse(mockReq(), this.res, noop, null, null, new Buffer('mock body'), { 'my-header-1': 1 });
                 t.deepEqual(spyHead.args[0], [200, { 'my-header-1': 1}]);
                 t.deepEqual(spyEnd.args[0], [new Buffer('mock body')]);
 
                 var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, null, null, { mock: 1, body: 2 });
+                this.rest.sendResponse(mockReq(), this.res, noop, null, null, { mock: 1, body: 2 });
                 t.deepEqual(spyHead.args[0], [200, undefined]);
                 t.deepEqual(spyEnd.args[0], ['{"mock":1,"body":2}']);
 
@@ -630,20 +644,20 @@ module.exports = {
             'should write erorr': function(t) {
                 var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, new Error(''));
+                this.rest.sendResponse(mockReq(), this.res, noop, new Error(''));
                 t.deepEqual(spyHead.args[0], [500, undefined]);
                 t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 500, message: 'Internal Error', debug: '' });
 
                 var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
                 var err = new Error('my mock error'); err.code = 'EMOCKE';
-                this.rest.sendResponse(mockReq(), this.res, err);
+                this.rest.sendResponse(mockReq(), this.res, noop, err);
                 t.deepEqual(spyHead.args[0], [500, undefined]);
                 t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 'EMOCKE', message: 'my mock error', debug: '' });
 
                 var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, new this.rest.HttpError(404, 'my page not found', 'check again'));
+                this.rest.sendResponse(mockReq(), this.res, noop, new this.rest.HttpError(404, 'my page not found', 'check again'));
                 t.deepEqual(spyHead.args[0], [404, undefined]);
                 t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 404, message: '404 Not Found', debug: 'my page not found', details: 'check again' });
 
@@ -656,7 +670,7 @@ module.exports = {
                     var spyEnd = t.stubOnce(this.res, 'end');
                     var body = { x: 1, body: body, y: 2, z: 'three' };
                     body.body = body;
-                    this.rest.sendResponse(mockReq(), this.res, null, 200, body);
+                    this.rest.sendResponse(mockReq(), this.res, noop, null, 200, body);
                     t.equal(spyHead.args[0][0], 500);
                     t.contains(spyEnd.args[0][0], 'unable to json encode response');
                     t.contains(spyEnd.args[0][0], ' containing x,body,y,z');
@@ -665,19 +679,26 @@ module.exports = {
                     t.done();
                 },
 
-                'should catch and log res.writeHead and res.end errors': function(t) {
+                'should catch and return res.writeHead errors': function(t) {
                     t.stubOnce(this.res, 'writeHead').throws('mock res.writeHead error');
-                    var spy = t.stubOnce(process.stderr, 'write');
-                    this.rest.sendResponse(mockReq(), this.res, null, 200, 'mock body');
-                    t.contains(spy.args[0][0], 'unable to send response');
+                    var self = this;
+                    self.rest.sendResponse(mockReq(), self.res, callback, null, 200, 'mock body');
+                    function callback(err) {
+                        t.ok(err);
+                        t.equal(err, 'mock res.writeHead error')
+                        t.done();
+                    }
+                },
 
+                'should catch and return res.end errors': function(t) {
                     t.stubOnce(this.res, 'end').throws('mock res.end error');
-                    var spy = t.stubOnce(process.stderr, 'write');
-                    this.rest.sendResponse(mockReq(), this.res, null, 200, 'mock body');
-                    t.ok(spy.called);
-                    t.contains(spy.args[0][0], 'unable to send response');
-
-                    t.done();
+                    var self = this;
+                    self.rest.sendResponse(mockReq(), self.res, callback, null, 200, 'mock body');
+                    function callback(err) {
+                        t.ok(err);
+                        t.equal(err, 'mock res.end error')
+                        t.done();
+                    }
                 },
             },
         },

@@ -104,8 +104,11 @@ function Rest( options ) {
 
     this.processRequest = options.processRequest;
     this.onError = options.onError || function onError( err, req, res, next ) {
-        self.sendResponse(req, res, new self.HttpError(500, err.message));
-        next();
+        self.sendResponse(req, res, callback, new self.HttpError(500, err.message));
+        function callback(err2) {
+            if (err2) console.error('%s -- microrest: unable to send response %s', new Date().toISOString(), err2.message);
+            next(err2);
+        }
     };
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
@@ -144,7 +147,7 @@ Rest.prototype._onRequest = function _onRequest( req, res ) {
         })
     } catch (e) { returnError(e) }
     function returnError(err) {
-        try { if (err) self.onError(err, req, res, function(){}) }
+        try { if (err) self.onError(err, req, res, function(e3){ }) }
         catch (e2) { console.error('%s -- microrest: onError error:', new Date().toISOString(), e2) }
     }
 }
@@ -177,7 +180,7 @@ Rest.prototype._doReadBody = function _doReadBody( state ) {
     }
 }
 
-Rest.prototype.sendResponse = function sendResponse( req, res, err, statusCode, body, headers ) {
+Rest.prototype.sendResponse = function sendResponse( req, res, next, err, statusCode, body, headers ) {
     if (!err && typeof body !== 'string' && !Buffer.isBuffer(body)) {
         var json = tryJsonEncode(body);
         if (! (json instanceof Error)) body = json;
@@ -191,7 +194,7 @@ Rest.prototype.sendResponse = function sendResponse( req, res, err, statusCode, 
         headers = undefined;
     }
     var err2 = tryWriteResponse(res, statusCode, headers, body);
-    if (err2) console.error('%s -- microrest: unable to send response %s', new Date().toISOString(), err2.message);
+    next(err2);
 
     function tryJsonEncode( body ) { try { return JSON.stringify(body) } catch (err) { return err } }
     function tryWriteResponse( res, scode, hdr, body ) { try { res.writeHead(scode || 200, hdr); res.end(body) } catch (err) { return err } }
