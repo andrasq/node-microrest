@@ -43,7 +43,7 @@ processing requests with the app.  Both http and https servers can be created.
 Unlike http createServer, microrest.createServer can listen on hunt for alternate ports.
 
 The function returns the http server, and the callback (if provided) is passed
-any server listen error or an object with the `pid` and `port` of the server.
+the server listen error or an object with the `pid` and `port` of the server.
 If no callback is provided, server errors are attached to `server._error`.
 
 The returned server has added properties
@@ -53,8 +53,7 @@ The returned server has added properties
 Options:
 - `protocol` - 'http:' or 'https:', default http
 - `port` - port to listen on
-- `tryNextPort` - if desired port is busy, try the next one
-- `anyPort` - if desired port is busy, listen on any available
+- `tryNextPort` - if desired port is busy, try the next one up
 - the options are also passed to https.createServer
 
 ### rest.createHandler( [options] )
@@ -74,10 +73,9 @@ Options:
 - onError - user-defined middleware step to handle errors
 
 Properties:
-- `encoding` - how to convert the request body, `null` to return raw bytes.
+- `encoding` - how to convert the request body, or `null` to return raw bytes.
             Same as `options.encoding`.
-- `router` - supports methods `addRoute(path, [method,] arrayOfFunc)`,
-            and `lookupRoute(path, method)`.
+- `router` - the provided router, if any.
 
 Helper methods:
 - `HttpError(statusCode, debugMessage, details)` -
