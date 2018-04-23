@@ -18,14 +18,17 @@ WORK IN PROGRESS
 Benchmark
 ---------
 
-    qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50
-    platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
-    arch=ia32 mhz=4384 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
+    qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50 platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
+    arch=ia32 mhz=4386 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
     name      speed           rate
-    restify     137 ops/sec   1000 >>>>>
-    express     192 ops/sec   1399 >>>>>>>
-    rest        357 ops/sec   2605 >>>>>>>>>>>>>
-    http        375 ops/sec   2730 >>>>>>>>>>>>>>
+    restify     135 ops/sec   1000 >>>>>
+    express     191 ops/sec   1414 >>>>>>>
+    rest        351 ops/sec   2599 >>>>>>>>>>>>>
+    http        360 ops/sec   2669 >>>>>>>>>>>>>
+
+And a non-REST remote procedure call library, just for fun:
+
+    qrpc      1,455 ops/sec  10760 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
 Api
@@ -116,5 +119,6 @@ Related Work
 - [`connect`](https://npmjs.com/package/connect) - basic express-compatible middleware web framework
 - [`express`](https://npmjs.com/package/express) - middleware web framework
 - [`microreq`](https://npmjs.com/package/microreq) - tiny web request convenience wrapper
+- [`qrpc`](https://npmjs.com/package/qrpc) - very fast remote procedure calls
 - [`restify`](https://npmjs.com/package/express) - middleware web framework
 - [`restiq`](https://npmjs.com/package/restiq) - middleware web framework
