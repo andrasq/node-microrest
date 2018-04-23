@@ -106,7 +106,7 @@ function Rest( options ) {
     this.onError = options.onError || function onError( err, req, res, next ) {
         self.sendResponse(req, res, callback, new self.HttpError(500, err.message));
         function callback(err2) {
-            if (err2) console.error('%s -- microrest: unable to send response %s', new Date().toISOString(), err2.message);
+            if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
             next(err2);
         }
     };
@@ -141,9 +141,8 @@ Rest.prototype._onRequest = function _onRequest( req, res ) {
         req.setEncoding(self.encoding);
         if (self.router) return self.router.runRoute(self, req, res, returnError);
         self.readBody(req, res, function(err, body) {
-            if (err) return returnError(err);
-            if (!self.processRequest) return returnError(new self.HttpError(500, 'no router or processRequest configured'));
-            self.processRequest(req, res, function(){}, body);
+            if (err || !self.processRequest) return returnError(err || new self.HttpError(500, 'no router or processRequest configured'));
+            self.processRequest(req, res, returnError, body);
         })
     } catch (e) { returnError(e) }
     function returnError(err) {
@@ -181,23 +180,24 @@ Rest.prototype._doReadBody = function _doReadBody( state ) {
 }
 
 Rest.prototype.sendResponse = function sendResponse( req, res, next, err, statusCode, body, headers ) {
-    if (!err && typeof body !== 'string' && !Buffer.isBuffer(body)) {
-        var json = tryJsonEncode(body);
-        if (! (json instanceof Error)) body = json;
-        else err = new this.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body));
-    }
     if (err) {
         statusCode = statusCode || err.statusCode || 500;
         body = { error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '') };
         if (err.details) body.details = '' + (err.details);
         body = JSON.stringify(body);
         headers = undefined;
+    } else if (typeof body !== 'string' && !Buffer.isBuffer(body)) {
+        var json = tryJsonEncode(body);
+        if (! (json instanceof Error)) body = json;
+        else return this.sendResponse(req, res, next, new this.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body)));
     }
     var err2 = tryWriteResponse(res, statusCode, headers, body);
     next(err2);
 
-    function tryJsonEncode( body ) { try { return JSON.stringify(body) } catch (err) { return err } }
-    function tryWriteResponse( res, scode, hdr, body ) { try { res.writeHead(scode || 200, hdr); res.end(body) } catch (err) { return err } }
+    function tryJsonEncode( body ) {
+        try { return JSON.stringify(body) } catch (err) { return err } }
+    function tryWriteResponse( res, scode, hdr, body ) {
+        try { res.statusCode = scode || 200; for (var k in hdr) res.setHeader(k, hdr[k]); res.end(body) } catch (err) { return err } }
 }
 
 Rest.prototype = toStruct(Rest.prototype);

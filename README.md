@@ -10,8 +10,8 @@ WORK IN PROGRESS
     const app = rest();
     require('http').createServer(app).listen(8086);
 
-    app.processRequest = function(res, res) {
-        // process request specified by req.method and req.path
+    app.processRequest = function(res, res, [next, [body]]) {
+        // process request specified by req.method and req.url
     }
 
 
@@ -81,9 +81,11 @@ Helper methods:
 - `HttpError(statusCode, debugMessage, details)` -
 - `readBody(req, res, next)` - function to read the request body from the `req` object.
    Calls `next(err, body)`.  Body is also set on req as `req.body`.
-- `processRequest(req, res, body)` - function to handle the request.
-   Prototype `(req, res, next, path, method, microtest)`.
-- `onError(err, req, res, next)` -
+- `processRequest(req, res, next, body)` - function to handle the request if
+   no router was provided.  Set to either the user-provided function or a built-in.
+   It is invoked with a noop callback and a separate copy of the body.
+- `onError(err, req, res, next)` - invoked on readBody or processRequest error, or
+   as the last resort error handler from routed path execution.
 - `sendResponse(req, res, next, err, statusCode, body, headers)` -
 
 

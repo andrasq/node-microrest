@@ -277,12 +277,12 @@ module.exports = {
             'should log sendResponse errors': function(t) {
                 var rest = new Rest();
                 var res = mockRes();
-                t.stubOnce(res, 'writeHead').throws(new Error('mock writeHead error'));
+                t.stubOnce(res, 'end').throws(new Error('mock end() error'));
                 var spy = t.stubOnce(process.stderr, 'write');
                 rest.onError(new Error('mock error'), mockReq(), res, noop);
                 t.ok(spy.called);
-                t.contains(spy.args[0][0], 'unable to send response');
-                t.contains(spy.args[0][0], 'mock writeHead error');
+                t.contains(spy.args[0][0], 'unable to send error');
+                t.contains(spy.args[0][0], 'mock end() error');
                 t.done();
             },
         },
@@ -623,45 +623,41 @@ module.exports = {
             },
 
             'should write status code, headers and body': function(t) {
-                var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
                 this.rest.sendResponse(mockReq(), this.res, noop, null, null, 'mock body', { 'my-header-1': 1 });
-                t.deepEqual(spyHead.args[0], [200, { 'my-header-1': 1}]);
+                t.equal(this.res.statusCode, 200);
+                t.contains(this.res._headers, {'my-header-1': 1});
                 t.deepEqual(spyEnd.args[0], ['mock body']);
 
-                var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, noop, null, null, new Buffer('mock body'), { 'my-header-1': 1 });
-                t.deepEqual(spyHead.args[0], [200, { 'my-header-1': 1}]);
+                this.rest.sendResponse(mockReq(), this.res, noop, null, null, new Buffer('mock body'), { 'my-header-1': 1, 'my-header-2': 2 });
+                t.equal(this.res.statusCode, 200);
+                t.contains(this.res._headers, {'my-header-1': 1, 'my-header-2': 2});
                 t.deepEqual(spyEnd.args[0], [new Buffer('mock body')]);
 
-                var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, noop, null, null, { mock: 1, body: 2 });
-                t.deepEqual(spyHead.args[0], [200, undefined]);
+                this.rest.sendResponse(mockReq(), this.res, noop, null, 201, { mock: 1, body: 2 });
+                t.equal(this.res.statusCode, 201);
                 t.deepEqual(spyEnd.args[0], ['{"mock":1,"body":2}']);
 
                 t.done();
             },
 
             'should write erorr': function(t) {
-                var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
                 this.rest.sendResponse(mockReq(), this.res, noop, new Error(''));
-                t.deepEqual(spyHead.args[0], [500, undefined]);
+                t.equal(this.res.statusCode, 500);
                 t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 500, message: 'Internal Error', debug: '' });
 
-                var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
                 var err = new Error('my mock error'); err.code = 'EMOCKE';
                 this.rest.sendResponse(mockReq(), this.res, noop, err);
-                t.deepEqual(spyHead.args[0], [500, undefined]);
+                t.equal(this.res.statusCode, 500);
                 t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 'EMOCKE', message: 'my mock error', debug: '' });
 
-                var spyHead = t.spyOnce(this.res, 'writeHead');
                 var spyEnd = t.spyOnce(this.res, 'end');
                 this.rest.sendResponse(mockReq(), this.res, noop, new this.rest.HttpError(404, 'my page not found', 'check again'));
-                t.deepEqual(spyHead.args[0], [404, undefined]);
+                t.equal(this.res.statusCode, 404);
                 t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 404, message: '404 Not Found', debug: 'my page not found', details: 'check again' });
 
                 t.done();
@@ -669,12 +665,10 @@ module.exports = {
 
             'errors': {
                 'should catch json encode errors': function(t) {
-                    var spyHead = t.stubOnce(this.res, 'writeHead');
                     var spyEnd = t.stubOnce(this.res, 'end');
                     var body = { x: 1, body: body, y: 2, z: 'three' };
                     body.body = body;
                     this.rest.sendResponse(mockReq(), this.res, noop, null, 200, body);
-                    t.equal(spyHead.args[0][0], 500);
                     t.contains(spyEnd.args[0][0], 'unable to json encode response');
                     t.contains(spyEnd.args[0][0], ' containing x,body,y,z');
                     t.contains(spyEnd.args[0][0], ' circular ');
@@ -682,13 +676,13 @@ module.exports = {
                     t.done();
                 },
 
-                'should catch and return res.writeHead errors': function(t) {
-                    t.stubOnce(this.res, 'writeHead').throws('mock res.writeHead error');
+                'should catch and return res.setHeader errors': function(t) {
+                    t.stubOnce(this.res, 'setHeader').throws('mock res.setHeader error');
                     var self = this;
-                    self.rest.sendResponse(mockReq(), self.res, callback, null, 200, 'mock body');
+                    self.rest.sendResponse(mockReq(), self.res, callback, null, 200, 'mock body', {'hdr1': 1});
                     function callback(err) {
                         t.ok(err);
-                        t.equal(err, 'mock res.writeHead error')
+                        t.equal(err, 'mock res.setHeader error')
                         t.done();
                     }
                 },
@@ -720,7 +714,8 @@ function mockReq() {
 
 function mockRes() {
     return {
-        writeHead: noop,
+        _headers: {},
+        setHeader: function(k, v) { this._headers[k] = v },
         write: noop,
         end: noop,
     }
