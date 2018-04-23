@@ -199,12 +199,15 @@ module.exports = {
             'without router': {
                 'should invoke processRequest': function(t) {
                     t.stub(this.rest, 'readBody').yieldsAsync(null, 'mock body');
-                    var spy = t.stub(this.rest, 'processRequest');
+                    var spy = t.stub(this.rest, 'processRequest').yields();
                     var req, res;
                     this.rest.onRequest(req = mockReq(), res = mockRes(), noop);
                     setTimeout(function() {
                         t.ok(spy.called);
-                        t.deepEqual(spy.args[0], [req, res, 'mock body']);
+                        t.equal(spy.args[0][0], req);
+                        t.equal(spy.args[0][1], res);
+                        t.equal(typeof spy.args[0][2], 'function');
+                        t.equal(spy.args[0][3], 'mock body');
                         t.done();
                     }, 3);
                 },
@@ -729,7 +732,7 @@ function NonRouter( ) {
     this.lookupRoute = function(path, method) { return null };
     this.runRoute = function(rest, req, res, next) {
         rest.readBody(req, res, function(err) {
-            if (!err) try { rest.processRequest(rest, req, res, next) } catch (e) { err = e }
+            if (!err) try { rest.processRequest(req, res, next, req.body) } catch (e) { err = e }
             if (err) rest.sendResponse(req, res, new rest.HttpError(500, err.message));
         })
     };

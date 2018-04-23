@@ -143,7 +143,7 @@ Rest.prototype._onRequest = function _onRequest( req, res ) {
         self.readBody(req, res, function(err, body) {
             if (err) return returnError(err);
             if (!self.processRequest) return returnError(new self.HttpError(500, 'no router or processRequest configured'));
-            self.processRequest(req, res, body);
+            self.processRequest(req, res, function(){}, body);
         })
     } catch (e) { returnError(e) }
     function returnError(err) {
