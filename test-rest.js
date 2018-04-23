@@ -509,6 +509,7 @@ module.exports = {
             },
 
             'should call _doReadBody': function(t) {
+                if (!this.rest._doReadBody) t.skip();
                 var spy = t.spy(this.rest, '_doReadBody');
                 this.rest.readBody(this.req, {}, function(err, body) {
                     t.ok(spy.called);

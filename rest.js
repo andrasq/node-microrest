@@ -134,17 +134,16 @@ Rest.prototype.addRoute = function addRoute( path, method, mw /* VARARGS */ ) {
 Rest.prototype._onRequest = function _onRequest( req, res ) {
     var self = this;
 
-    // TODO: inefficient to create multiple bound functions on every request...
-    // try to factor out state vars
+    (function(){ try { tryOnRequest(self, req, res) } catch (e) { returnError(e) } })();
 
-    try {
+    function tryOnRequest( self, req, res ) {
         req.setEncoding(self.encoding);
         if (self.router) return self.router.runRoute(self, req, res, returnError);
         self.readBody(req, res, function(err, body) {
             if (err || !self.processRequest) return returnError(err || new self.HttpError(500, 'no router or processRequest configured'));
-            self.processRequest(req, res, returnError, body);
+            try { self.processRequest(req, res, returnError, body); } catch (e) { returnError(e) }
         })
-    } catch (e) { returnError(e) }
+    }
     function returnError(err) {
         try { if (err) self.onError(err, req, res, function(e3){ }) }
         catch (e2) { console.error('%s -- microrest: onError error:', new Date().toISOString(), e2) }
