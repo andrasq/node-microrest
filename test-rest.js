@@ -292,7 +292,7 @@ module.exports = {
         'should return a function with expected properties': function(t) {
             var handler = rest.createHandler();
             t.equal(typeof handler, 'function');
-            t.equal(handler.length, 2);
+            t.equal(handler.length, 3);
             t.equal(typeof handler.use, 'function');
             var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ];
             httpMethods.forEach(function(method){ t.equal(typeof handler[method], 'function') });

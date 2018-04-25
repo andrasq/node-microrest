@@ -112,7 +112,7 @@ function Rest( options ) {
     };
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
-    this.onRequest = function(req, res) { return self._onRequest(req, res); }
+    this.onRequest = function(req, res, next) { self._onRequest(req, res); if (next) next(); }
 }
 
 
@@ -131,7 +131,7 @@ Rest.prototype.addRoute = function addRoute( path, method, mw /* VARARGS */ ) {
     return this;
 }
 
-Rest.prototype._onRequest = function _onRequest( req, res ) {
+Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     var self = this;
 
     (function(){ try { tryOnRequest(self, req, res) } catch (e) { returnError(e) } })();
@@ -145,8 +145,8 @@ Rest.prototype._onRequest = function _onRequest( req, res ) {
         })
     }
     function returnError(err) {
-        try { if (err) self.onError(err, req, res, function(e3){ }) }
-        catch (e2) { console.error('%s -- microrest: onError error:', new Date().toISOString(), e2) }
+        try { if (err) self.onError(err, req, res, function(e3){ }); if (next) next() }
+        catch (e2) { next ? next(err || e2) : console.error('%s -- microrest: onError error:', new Date().toISOString(), e2) }
     }
 }
 
