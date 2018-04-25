@@ -1,8 +1,10 @@
-// npm install microrest express restify qrpc qtimeit
+// npm install microreq qtimeit restify express qrpc
 // wrk -d4s -t2 -c8 'http://localhost:1337/echo?a=1&b=2&c=3
 
 
+var util = require('util');
 var cluster = require('cluster');
+var child_process = require('child_process');
 var http = require('http');
 var microreq = require('microreq');
 var qtimeit = require('qtimeit');
@@ -10,8 +12,11 @@ var qtimeit = require('qtimeit');
 var frameworks = {
     restify: { pkg: require('restify'), ver: require('restify/package').version, port: 1337 },
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
+    rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
     rest: { pkg: require('./'), ver: require('./package').version, port: 1339 },
+    http_buf: { pkg: require('http'), ver: process.version, port: 1344 },
     http: { pkg: require('http'), ver: process.version, port: 1340 },
+    http_raw: { pkg: require('http'), ver: process.version, port: 1343 },
     qrpc: { pkg: require('qrpc'), ver: require('qrpc/package').version, port: 1341 },
 }
 
@@ -27,14 +32,14 @@ if (cluster.isMaster) {
     var basePort = 1337;
 
     if (frameworks.restify) {
-        // 1337: 8.2k/s, 508us stddev 97.6us
+        // 13.8k/s 259us
         servers.restify = frameworks.restify.pkg.createServer();
         servers.restify.listen(frameworks.restify.port);
         servers.restify.get(path1, function(req, res, next) { res.send(200, response1); next(); })
     }
 
     if (frameworks.express) {
-        // 1338: 12.3k/s, 315us stddev 57.7us
+        // 20.3k/s 182us
         servers.express = frameworks.express.pkg();
         servers.express.listen(frameworks.express.port);
         servers.express.get(path1, function(req, res, next) { res.status(200).send(response1); next(); })
@@ -45,8 +50,19 @@ if (cluster.isMaster) {
         // 23.6k/s
     }
 
+    if (frameworks.rest_mw) {
+        // 44.5k/s 86.6us
+        servers.rest_mw = frameworks.rest.pkg.createServer({ port: frameworks.rest_mw.port });
+        servers.rest_mw._rest.router = new (require('./router'))();
+        //servers.rest_mw._rest.addRoute('/test1', function(req, res, next) { servers.rest._rest.sendResponse(req, res, noop, null, 200, response1); });
+        // 41k/s
+        servers.rest_mw._rest.addRoute('/test1', function test1(req, res, next) { res.end(response1); });
+        // 42.6k/s
+        function noop(){}
+    }
+
     if (frameworks.rest) {
-        // 1339: 31k/s, 131us stddev 19.9us
+        // 48.8k 77.2us
         servers.rest = frameworks.rest.pkg.createServer({ port: frameworks.rest.port });
         servers.rest._rest.processRequest = function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
@@ -62,21 +78,47 @@ if (cluster.isMaster) {
         }
     }
 
+    if (frameworks.http_buf) {
+        // 51.6k/s 74.3us
+        servers.http = frameworks.http.pkg.createServer();
+        servers.http.listen(frameworks.http_buf.port);
+        servers.http.on('request', function(req, res) {
+            if (req.url === path1 && req.method === 'GET') {
+                var chunks = new Array();
+                req.on('data', function(chunk) { chunks.push(chunk) });
+                req.on('end', function() {
+                    var body = Buffer.concat(chunks);
+                    res.end(response1);
+                })
+            }
+            else { res.writeHead(404); res.end(); }
+        })
+    }
+
     if (frameworks.http) {
-        // 1340: 35.1k/s, 117us stddev 16.2us not reading req body
-        // 1340: 29.6k/s, 139us stddev 23.5us yes reading req body
+        // 52.2k/s 73.8us
         servers.http = frameworks.http.pkg.createServer();
         servers.http.listen(frameworks.http.port);
         servers.http.on('request', function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
-                req.setEncoding('utf8');
                 var body = '';
+                req.setEncoding('utf8');
                 req.on('data', function(chunk) { body += chunk });
                 req.on('end', function() {
                     res.end(response1);
                 })
             }
             else { res.writeHead(404); res.end(); }
+        })
+    }
+
+    if (frameworks.http_raw) {
+        // 54.5k 70.3us
+        servers.http = frameworks.http.pkg.createServer();
+        servers.http.listen(frameworks.http_raw.port);
+        servers.http.on('request', function(req, res) {
+            req.resume();
+            req.on('end', function() { res.end(response1) });
         })
     }
 
@@ -146,17 +188,42 @@ else {
                     throw new Error("wrong response")
                 }
                 if (++ndone === ncalls) {
-                    callback();
+                    process.nextTick(callback);
                 }
             }
         }
     }
 
     function runSuite() {
-console.log("AR: runSuite");
+        console.log("AR: runSuite");
+
+        // NOTE: to disable, set -d to 0 sec
+        var cmdline = 'wrk -d2s -t2 -c4 http://localhost:%d/test1';
+        console.log("AR: restify:");
+        child_process.exec(util.format(cmdline, frameworks.restify.port), function(err, stdout, stderr) {
+            if (!err) console.log(stdout + '\n');
+        console.log("AR: express:");
+        child_process.exec(util.format(cmdline, frameworks.express.port), function(err, stdout, stderr) {
+            if (!err) console.log(stdout + '\n');
+        console.log("AR: rest_mw:");
+        child_process.exec(util.format(cmdline, frameworks.rest_mw.port), function(err, stdout, stderr) {
+            if (!err) console.log(stdout + '\n');
+        console.log("AR: rest:");
+        child_process.exec(util.format(cmdline, frameworks.rest.port), function(err, stdout, stderr) {
+            if (!err) console.log(stdout + '\n');
+        console.log("AR: http_buf:");
+        child_process.exec(util.format(cmdline, frameworks.http_buf.port), function(err, stdout, stderr) {
+            if (!err) console.log(stdout + '\n');
+        console.log("AR: http:");
+        child_process.exec(util.format(cmdline, frameworks.http.port), function(err, stdout, stderr) {
+            if (!err) console.log(stdout + '\n');
+        console.log("AR: http_raw:");
+        child_process.exec(util.format(cmdline, frameworks.http_raw.port), function(err, stdout, stderr) {
+            if (!err) console.log(stdout + '\n');
+
         qtimeit.bench.timeGoal = .2;
         qtimeit.bench.visualize = true;
-        //qtimeit.bench.showRunDetails = false;
+        qtimeit.bench.showRunDetails = false;
 
         console.log("AR: bursts of %d calls", parallelCallCount);
         if (1)
@@ -166,6 +233,6 @@ console.log("AR: runSuite");
 
 
             console.log("AR: Done.");
-        }) }) })
+        }) }) }) }) }) }) }) }) }) })
     }
 }
