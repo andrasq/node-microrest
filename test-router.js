@@ -179,6 +179,37 @@ module.exports = {
         },
 
     },
+
+    'runRoute': {
+        'should run all steps': function(t) {
+            var calls = [];
+            this.router.setRoute('pre', function(req, res, next) { calls.push('pre1'); next() });
+            this.router.setRoute('pre', function(req, res, next) { calls.push('pre2'); next() });
+            this.router.setRoute('use', function(req, res, next) { calls.push('use1'); next() });
+            this.router.setRoute('use', function(req, res, next) { calls.push('use2'); next() });
+            this.router.setRoute('/test/path', [function(req, res, next) { calls.push('path1'); next() }]);
+            this.router.setRoute('post', [function(req, res, next) { calls.push('post1'); next('test error') }]);
+            this.router.setRoute('post', [function(req, res, next) { calls.push('post2'); next() }]);
+            this.router.setRoute('err', function(err, req, res, next) { calls.push('err1'); next() });
+            this.router.setRoute('err', function(err, req, res, next) { calls.push('err2'); next() });
+            var rest = { readBody: function(req, res, next) { req.body = "mock body"; next() } };
+            var req = { url: '/test/path', method: 'GET' };
+            var res = {};
+            this.router.runRoute(rest, req, res, function(err) {
+                t.equal(err, 'test error');
+                t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'use2', 'path1', 'post1', 'err1']);
+                t.done();
+            })
+        },
+
+        'mw should stop on error': function(t) {
+t.skip();
+        },
+
+        'mw should stop on false': function(t) {
+t.skip();
+        },
+    },
 }
 
 function noop(){}

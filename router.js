@@ -89,7 +89,8 @@ Router.prototype.getRoute = function getRoute( path, method ) {
 
 // apply the steps defined for the route to the http request
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
-    var route = rest.getRoute();
+    var self = this;
+    var route = this.getRoute();
     var mwRoute;
 
     var mwSteps = [
@@ -99,7 +100,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
             mw.runMwSteps(route.pre, req, res, next);
         },
         function doRoute(req, res, next) {
-            mwRoute = rest.getRoute(req.url, req.method);
+            mwRoute = self.getRoute(req.url, req.method);
             if (!route) return next(new rest.HttpError(rest.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
             for (var k in route.params) req.params[k] = route.params[k];
             next();
@@ -111,7 +112,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         // use 'use' steps to parse the query string and body params
         function runMw(req, res, next) {
             if (!mwRoute) return next();
-            mw.runMwSteps(mwRoute.maproutes, req, res, next);
+            mw.runMwSteps(mwRoute.mw, req, res, next);
         },
     ];
     mw.runMwSteps(mwSteps, req, res, function(err1) {
@@ -127,7 +128,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
                 if (err3 === err2) console.error('microrest-router: unhandled post mw error', err3);
                 if (err1 && err2) console.error('microrest-router: double-fault: unhandled error from post mw', err2);
                 if (err3 !== err1 && err3 !== err2) console.error('microrest-router: double-fault: unhandled error in mw error handler', err3);
-                return callback(err || err3 || null);
+                if (callback) return callback(err1 || err2 || err3 || null);
 
                 // TODO: uncaughtException handling -- same as errors?
             })
