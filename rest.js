@@ -60,10 +60,10 @@ function createHandler( options ) {
     var handler = rest.onRequest;
     handler.rest = rest;
 
-    handler.use = function use(mw) { mw.length === 3 ? rest.addRoute('use', mw) : rest.addRoute('err', mw) };
+    handler.use = function use(mw) { mw.length === 3 ? rest.setRoute('use', mw) : rest.setRoute('err', mw) };
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     httpMethods.forEach(function(name) {
-        var fn = function( path, mw ) { return rest.addRoute(path, name.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
+        var fn = function( path, mw ) { return rest.setRoute(path, name.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
         handler[name] = Object.defineProperty(fn, 'name', { writable: true });
         fn.name = name;
     })
@@ -116,18 +116,18 @@ function Rest( options ) {
 }
 
 
-Rest.prototype.lookupRoute = function lookupRoute( path, method ) {
-    return this.router && this.router.lookupRoute(path, method) || null;
+Rest.prototype.getRoute = function getRoute( path, method ) {
+    return this.router && this.router.getRoute(path, method) || null;
 }
-Rest.prototype.removeRoute = function removeRoute( path, method ) {
-    return this.router && this.router.removeRoute(path, method) || null;
+Rest.prototype.deleteRoute = function deleteRoute( path, method ) {
+    return this.router && this.router.deleteRoute(path, method) || null;
 }
-Rest.prototype.addRoute = function addRoute( path, method, mw /* VARARGS */ ) {
+Rest.prototype.setRoute = function setRoute( path, method, mw /* VARARGS */ ) {
     mw = sliceMwArgs(new Array(), arguments, typeof method === 'string' ? 2 : 1);
     method = typeof method === 'string' ? method : '_ANY_';
     for (var i=0; i<mw.length; i++) if (typeof mw[i] !== 'function') throw new Error('middleware step [' + i + '] is not a function');
     if (!this.router) throw new this.HttpError('mw routing not supported');
-    (path[0] === '/') ? this.router.addRoute(path, method, mw) : this.router.addRoute(path, '_ANY_', mw);
+    (path[0] === '/') ? this.router.setRoute(path, method, mw) : this.router.setRoute(path, '_ANY_', mw);
     return this;
 }
 

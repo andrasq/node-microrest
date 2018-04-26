@@ -23,7 +23,7 @@ function Router( ) {
     this.rexmap = {};                   // matched routes, by path
 }
 
-Router.prototype.addRoute = function addRoute( path, method, mwSteps, sentinel ) {
+Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel ) {
     if (typeof method !== 'string' || sentinel) {
         if (mwSteps) throw new Error('expected exactly one mw step or array');
         mwSteps = method;
@@ -52,12 +52,12 @@ Router.prototype.addRoute = function addRoute( path, method, mwSteps, sentinel )
     else throw new Error(path + ': invalid mw mount path');
 }
 
-Router.prototype.removeRoute = function removeRoute( path, method ) {
+Router.prototype.deleteRoute = function deleteRoute( path, method ) {
     if (this.maproutes[path]) delete this.maproutes[path][method];
     if (this.rexmap[path]) delete this.rexmap[path].methods[method];
 }
 
-Router.prototype.lookupRoute = function lookupRoute( path, method ) {
+Router.prototype.getRoute = function getRoute( path, method ) {
     var route = {
         path: path,
         method: method,
@@ -89,7 +89,7 @@ Router.prototype.lookupRoute = function lookupRoute( path, method ) {
 
 // apply the steps defined for the route to the http request
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
-    var route = rest.lookupRoute();
+    var route = rest.getRoute();
     var mwRoute;
 
     var mwSteps = [
@@ -99,7 +99,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
             mw.runMwSteps(route.pre, req, res, next);
         },
         function doRoute(req, res, next) {
-            mwRoute = rest.lookupRoute(req.url, req.method);
+            mwRoute = rest.getRoute(req.url, req.method);
             if (!route) return next(new rest.HttpError(rest.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
             for (var k in route.params) req.params[k] = route.params[k];
             next();

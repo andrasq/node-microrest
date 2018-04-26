@@ -11,102 +11,102 @@ module.exports = {
         done();
     },
 
-    'addRoute': {
+    'setRoute': {
         'should route a use step': function(t) {
-            this.router.addRoute('use', this.fn1);
-            this.router.addRoute('use', 'GET', this.fn2);
-            this.router.addRoute('err', [this.fne]);
-            t.deepEqual(this.router.lookupRoute('use'), [this.fn1, this.fn2]);
-            t.deepEqual(this.router.lookupRoute('err'), [this.fne]);
-            t.deepEqual(this.router.lookupRoute('pre'), []);
-            t.deepEqual(this.router.lookupRoute('post'), []);
-            t.deepEqual(this.router.lookupRoute('nonesuch'), null);
+            this.router.setRoute('use', this.fn1);
+            this.router.setRoute('use', 'GET', this.fn2);
+            this.router.setRoute('err', [this.fne]);
+            t.deepEqual(this.router.getRoute('use'), [this.fn1, this.fn2]);
+            t.deepEqual(this.router.getRoute('err'), [this.fne]);
+            t.deepEqual(this.router.getRoute('pre'), []);
+            t.deepEqual(this.router.getRoute('post'), []);
+            t.deepEqual(this.router.getRoute('nonesuch'), null);
             t.done();
         },
 
         'should return universal routing info': function(t) {
-            this.router.addRoute('use', [this.fn1]);
-            this.router.addRoute('use', [this.fn2]);
-            this.router.addRoute('err', [this.fne]);
-            t.contains(this.router.lookupRoute(), { pre: [], post: [], err: [this.fne] });
-            this.router.addRoute('/test/path', [this.fn1]);
-            t.deepEqual(this.router.lookupRoute('/test/path').mw, [this.fn1, this.fn2, this.fn1]);
+            this.router.setRoute('use', [this.fn1]);
+            this.router.setRoute('use', [this.fn2]);
+            this.router.setRoute('err', [this.fne]);
+            t.contains(this.router.getRoute(), { pre: [], post: [], err: [this.fne] });
+            this.router.setRoute('/test/path', [this.fn1]);
+            t.deepEqual(this.router.getRoute('/test/path').mw, [this.fn1, this.fn2, this.fn1]);
             t.done();
         },
 
         'edge cases': {
             'should reject invalid mount path': function(t) {
-                try { this.router.addRoute('badwhere', [this.fn1]). t.fail() }
+                try { this.router.setRoute('badwhere', [this.fn1]). t.fail() }
                 catch (e) { t.contains(e.message, 'invalid mw mount path'); }
                 t.done();
             },
 
             'should reject multiple mw steps': function(t) {
-                try { this.router.addRoute('/path', 'GET', this.fn1, this.fn2); t.fail() }
+                try { this.router.setRoute('/path', 'GET', this.fn1, this.fn2); t.fail() }
                 catch (e) { t.contains(e.message, 'expected exactly one'); }
-                try { this.router.addRoute('/path', this.fn1, this.fn2); t.fail() }
+                try { this.router.setRoute('/path', this.fn1, this.fn2); t.fail() }
                 catch (e) { t.contains(e.message, 'expected exactly one'); }
                 t.done();
             },
 
             'should reject non-function mw': function(t) {
-                try { this.router.addRoute('/path', 'GET', [123]); t.fail() }
+                try { this.router.setRoute('/path', 'GET', [123]); t.fail() }
                 catch (e) { t.contains(e.message, 'not a function'); }
-                try { this.router.addRoute('/path', [123]); t.fail() }
+                try { this.router.setRoute('/path', [123]); t.fail() }
                 catch (e) { t.contains(e.message, 'not a function'); }
-                try { this.router.addRoute('/path', 'GET', [this.fn1, 123, this.fn2]); t.fail() }
+                try { this.router.setRoute('/path', 'GET', [this.fn1, 123, this.fn2]); t.fail() }
                 catch (e) { t.contains(e.message, 'not a function'); }
-                try { this.router.addRoute('/path', [this.fn1, 123, this.fn2]); t.fail() }
+                try { this.router.setRoute('/path', [this.fn1, 123, this.fn2]); t.fail() }
                 catch (e) { t.contains(e.message, 'not a function'); }
                 t.done();
             },
 
             'should map different methods onto same regex path': function(t) {
-                this.router.addRoute('/obj/:foo/:bar', 'GET', [this.fn1]);
-                this.router.addRoute('/obj/:foo/:bar', 'PUT', [this.fn2]);
-                t.deepEqual(this.router.lookupRoute('/obj/a/b', 'GET').mw, [this.fn1]);
-                t.deepEqual(this.router.lookupRoute('/obj/a/b', 'GET').params, { foo: 'a', bar: 'b' });
-                t.deepEqual(this.router.lookupRoute('/obj/c/d', 'PUT').mw, [this.fn2]);
-                t.deepEqual(this.router.lookupRoute('/obj/c/d', 'PUT').params, { foo: 'c', bar: 'd' });
+                this.router.setRoute('/obj/:foo/:bar', 'GET', [this.fn1]);
+                this.router.setRoute('/obj/:foo/:bar', 'PUT', [this.fn2]);
+                t.deepEqual(this.router.getRoute('/obj/a/b', 'GET').mw, [this.fn1]);
+                t.deepEqual(this.router.getRoute('/obj/a/b', 'GET').params, { foo: 'a', bar: 'b' });
+                t.deepEqual(this.router.getRoute('/obj/c/d', 'PUT').mw, [this.fn2]);
+                t.deepEqual(this.router.getRoute('/obj/c/d', 'PUT').params, { foo: 'c', bar: 'd' });
 
-                t.deepEqual(this.router.lookupRoute('/obj/a/', 'POST'), null);
-                this.router.addRoute('/obj/:foo/:bar', [this.fn1]);
-                t.deepEqual(this.router.lookupRoute('/obj/x/y', 'POST').mw, [this.fn1]);
-                t.deepEqual(this.router.lookupRoute('/obj/x/y', 'POST').params, { foo: 'x', bar: 'y' });
-                t.deepEqual(this.router.lookupRoute('/obj/x/y', 'HEAD').mw, [this.fn1]);
+                t.deepEqual(this.router.getRoute('/obj/a/', 'POST'), null);
+                this.router.setRoute('/obj/:foo/:bar', [this.fn1]);
+                t.deepEqual(this.router.getRoute('/obj/x/y', 'POST').mw, [this.fn1]);
+                t.deepEqual(this.router.getRoute('/obj/x/y', 'POST').params, { foo: 'x', bar: 'y' });
+                t.deepEqual(this.router.getRoute('/obj/x/y', 'HEAD').mw, [this.fn1]);
 
                 t.done();
             },
         },
     },
 
-    'removeRoute': {
-        'should remove matching mapped route': function(t) {
-            this.router.addRoute('/test/path', 'GET', [this.fn1]);
-            t.ok(this.router.lookupRoute('/test/path', 'GET'));
+    'deleteRoute': {
+        'should delete matching mapped route': function(t) {
+            this.router.setRoute('/test/path', 'GET', [this.fn1]);
+            t.ok(this.router.getRoute('/test/path', 'GET'));
 
-            this.router.removeRoute('/test/path', 'POST');
-            t.ok(this.router.lookupRoute('/test/path', 'GET'));
+            this.router.deleteRoute('/test/path', 'POST');
+            t.ok(this.router.getRoute('/test/path', 'GET'));
 
-            this.router.removeRoute('/test/path', 'GET');
-            t.ok(!this.router.lookupRoute('/test/path', 'GET'));
+            this.router.deleteRoute('/test/path', 'GET');
+            t.ok(!this.router.getRoute('/test/path', 'GET'));
             t.done();
         },
 
-        'should remove matching regex route': function(t) {
-            this.router.addRoute('/:test/path', 'GET', [this.fn1]);
-            t.ok(this.router.lookupRoute('/test/path', 'GET'));
+        'should delete matching regex route': function(t) {
+            this.router.setRoute('/:test/path', 'GET', [this.fn1]);
+            t.ok(this.router.getRoute('/test/path', 'GET'));
 
-            this.router.removeRoute('/:test/path', 'POST');
-            t.ok(this.router.lookupRoute('/test/path', 'GET'));
+            this.router.deleteRoute('/:test/path', 'POST');
+            t.ok(this.router.getRoute('/test/path', 'GET'));
 
-            this.router.removeRoute('/:test/path', 'GET');
-            t.ok(!this.router.lookupRoute('/test/path', 'GET'));
+            this.router.deleteRoute('/:test/path', 'GET');
+            t.ok(!this.router.getRoute('/test/path', 'GET'));
             t.done();
         },
 
         'should tolearate missing route': function(t) {
-            this.router.removeRoute('/test/path', 'GET');
+            this.router.deleteRoute('/test/path', 'GET');
             t.done();
         },
     },
@@ -114,13 +114,13 @@ module.exports = {
     'direct mapped routes': {
 
         'should route a GET request': function(t) {
-            this.router.addRoute('/test/one', 'GET', [this.fn1]);
-            this.router.addRoute('/test/two', 'GET', [this.fn2]);
-            var route = this.router.lookupRoute('/test/one', 'GET');
+            this.router.setRoute('/test/one', 'GET', [this.fn1]);
+            this.router.setRoute('/test/two', 'GET', [this.fn2]);
+            var route = this.router.getRoute('/test/one', 'GET');
             t.equal(route.mw[0], this.fn1);
-            var route = this.router.lookupRoute('/test/two', 'GET');
+            var route = this.router.getRoute('/test/two', 'GET');
             t.equal(route.mw[0], this.fn2);
-            var route = this.router.lookupRoute('/test/three', 'GET');
+            var route = this.router.getRoute('/test/three', 'GET');
             t.equal(route, null);
             t.done();
         }
@@ -134,9 +134,9 @@ module.exports = {
         },
 
         'should map a regex route': function(t) {
-            this.router.addRoute('use', [this.fn1]);
-            this.router.addRoute('/:name1/:name2', [this.fn1, this.fn2]);
-            var route = this.router.lookupRoute('/test/one');
+            this.router.setRoute('use', [this.fn1]);
+            this.router.setRoute('/:name1/:name2', [this.fn1, this.fn2]);
+            var route = this.router.getRoute('/test/one');
             t.deepEqual(route.mw, [this.fn1, this.fn1, this.fn2]);
             t.deepEqual(route.params, { name1: 'test', name2: 'one' });
             t.done();
