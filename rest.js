@@ -62,7 +62,10 @@ function createHandler( options ) {
     handler.rest = rest;
 
     // TODO: allow use('/path') with (mw), (mw1, mw2), ([mw])
-    handler.use = function use(mw) { mw.length === 3 ? rest.setRoute('use', mw) : rest.setRoute('err', mw) };
+    handler.use = function use(mw) {
+        typeof mw === 'string' ? rest.setRoute(arguments[0], arguments[1]) : rest.setRoute(mw.length === 4 ? 'err' : 'use', mw);
+    }
+// TODO: are http method aliases needed for the handler?
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     httpMethods.forEach(function(method) {
         var fn = function( path, mw ) { return rest.setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
@@ -115,6 +118,8 @@ function Rest( options ) {
     this.onRequest = function(req, res, next) { self._onRequest(req, res, next); }
 }
 
+
+// TODO: routing is not needed on rest objects... inject the router into the app instead
 
 Rest.prototype.getRoute = function getRoute( path, method ) {
     return this.router && this.router.getRoute(path, method) || null;
