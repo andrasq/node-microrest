@@ -62,12 +62,12 @@ function createHandler( options ) {
 
     handler.use = function use(mw) { mw.length === 3 ? rest.setRoute('use', mw) : rest.setRoute('err', mw) };
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
-    httpMethods.forEach(function(name) {
-        var fn = function( path, mw ) { return rest.setRoute(path, name.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
-        handler[name] = Object.defineProperty(fn, 'name', { writable: true });
-        fn.name = name;
+    httpMethods.forEach(function(method) {
+        var fn = function( path, mw ) { return rest.setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
+        handler[method] = Object.defineProperty(fn, 'name', { writable: true });
+        fn.name = method;
     })
-    handler.del = Rest.prototype.delete;
+    handler.del = handler.delete;
 
     return handler;
 }

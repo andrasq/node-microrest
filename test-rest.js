@@ -294,7 +294,7 @@ module.exports = {
             t.equal(typeof handler, 'function');
             t.equal(handler.length, 3);
             t.equal(typeof handler.use, 'function');
-            var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ];
+            var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch', 'del' ];
             httpMethods.forEach(function(method){ t.equal(typeof handler[method], 'function') });
             t.done();
         },
