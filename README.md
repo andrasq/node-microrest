@@ -7,10 +7,10 @@ Perfect for adding a web API to an existing app.
 WORK IN PROGRESS
 
     const rest = require('microrest');
-    const app = rest();
+    const app = rest({ processRequest: processRequest });
     require('http').createServer(app).listen(8086);
 
-    app.processRequest = function(res, res, [next, [body]]) {
+    function processRequest(res, res, [next, [body]]) {
         // process request specified by req.method and req.url
     }
 
@@ -18,17 +18,19 @@ WORK IN PROGRESS
 Benchmark
 ---------
 
+Rate to serve 100 calls with a 20 byte request, 200 byte response:
+
     qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50 platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
     arch=ia32 mhz=4386 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
-    name      speed           rate
-    restify     135 ops/sec   1000 >>>>>
-    express     191 ops/sec   1414 >>>>>>>
-    rest        351 ops/sec   2599 >>>>>>>>>>>>>
-    http        360 ops/sec   2669 >>>>>>>>>>>>>
+    name       speed           rate
+    restify      125 ops/sec   1000 >>>>>
+    express      172 ops/sec   1382 >>>>>>>
+    rest         309 ops/sec   2460 >>>>>>>>>>>>
+    http         313 ops/sec   2491 >>>>>>>>>>>>
 
-And a non-REST remote procedure call library, just for fun:
+And, just for fun, a non-REST remote procedure call library:
 
-    qrpc      1,455 ops/sec  10760 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    qrpc       1,278 ops/sec  10152 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
 Api
