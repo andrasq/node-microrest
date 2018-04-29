@@ -106,11 +106,9 @@ function Rest( options ) {
 
     this.processRequest = options.processRequest;
     this.onError = options.onError || function onError( err, req, res, next ) {
-        self.sendResponse(req, res, callback, new self.HttpError(500, err.message));
-        function callback(err2) {
-            if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
-            next(err2);
-        }
+        var err2 = self._tryWriteResponse(res, 500, {}, { code: 500, message: 'Internal Error', debug: err.message });
+        if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
+        next(err2);
     };
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
@@ -154,51 +152,32 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
 
 Rest.prototype.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
-    var state = { req: req, res: res, next: next, rest: this, bodySize: 0, body: '', chunks: new Array() };
-    this._doReadBody(state);
-}
-Rest.prototype._doReadBody = function _doReadBody( state ) {
-    state.req.on('data', onData);
-    state.req.on('error', onError);
-    state.req.on('end', onEnd);
-    onData(state.req.read());
+    var rest = this, body = '', chunks = null, bodySize = 0;
 
-    function onData(chunk) {
-        // TODO: fast-path discard the rest of the input without reading it all
-        if (chunk && (state.bodySize += chunk.length) > state.rest.bodySizeLimit) ; else
-        if (chunk) (typeof chunk === 'string' ? state.body += chunk : state.chunks.push(chunk))
-    }
-    function onError(err) {
-        state.next(err);
-    }
-    function onEnd() {
-        if (state.bodySize > state.rest.bodySizeLimit) return state.next((new state.rest.HttpError(400, 'max body size exceeded')), 1);
-        var body = state.body || (state.chunks.length > 1 ? Buffer.concat(state.chunks) : state.chunks[0] || new Buffer(''))
-        if (body.length === 0 && state.req._readableState && state.req._readableState.encoding) body = '';
-        state.req.body = body;
-        state.next(null, body);
-    }
+    req.on('data', function(chunk) {
+        if (bodySize >= rest.bodySizeLimit) return;
+        if (typeof chunk === 'string') (!body ? body = chunk : body += chunk);
+        else (chunks ? chunks.push(chunk) : chunks = new Array(chunk));
+        bodySize += chunk.length;
+    })
+    req.on('error', function(err) {
+        next(err);
+    })
+    req.on('end', function() {
+        if (bodySize > rest.bodySizeLimit) return next((new rest.HttpError(400, 'max body size exceeded')), 1);
+        body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : '');
+        if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
+        req.body = body;
+        next(null, body);
+    })
 }
 
-Rest.prototype.sendResponse = function sendResponse( req, res, next, err, statusCode, body, headers ) {
-    if (err) {
-        statusCode = statusCode || err.statusCode || 500;
-        body = { error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '') };
-        if (err.details) body.details = '' + (err.details);
-        body = JSON.stringify(body);
-        headers = undefined;
-    } else if (typeof body !== 'string' && !Buffer.isBuffer(body)) {
-        var json = tryJsonEncode(body);
-        if (! (json instanceof Error)) body = json;
-        else return this.sendResponse(req, res, next, new this.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body)));
-    }
-    var err2 = tryWriteResponse(res, statusCode, headers, body);
-    next(err2);
-
-    function tryJsonEncode( body ) {
-        try { return JSON.stringify(body) } catch (err) { return err } }
-    function tryWriteResponse( res, scode, hdr, body ) {
-        try { res.statusCode = scode || 200; for (var k in hdr) res.setHeader(k, hdr[k]); res.end(body) } catch (err) { return err } }
+Rest.prototype._tryWriteResponse = function _writeResponse( res, scode, hdr, body ) {
+    try {
+        res.statusCode = scode || 200;
+        for (var k in hdr) res.setHeader(k, hdr[k]);
+        res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
+    } catch (err) { return err }
 }
 
 Rest.prototype = toStruct(Rest.prototype);

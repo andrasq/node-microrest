@@ -9,6 +9,8 @@ var http = require('http');
 var microreq = require('microreq');
 var qtimeit = require('qtimeit');
 
+var mw = require('./mw');
+
 var frameworks = {
     restify: { pkg: require('restify'), ver: require('restify/package').version, port: 1337 },
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
@@ -63,6 +65,7 @@ if (cluster.isMaster) {
     }
 
     if (frameworks.connect) {
+        // 44.0k/s 85.3us
         servers.connect = frameworks.connect.pkg();
         servers.connect.use(path1, function(req, res, next) { res.end(response1); next(); })
         http.createServer(servers.connect).listen(frameworks.connect.port);
@@ -72,7 +75,7 @@ if (cluster.isMaster) {
         // 44.1k/s 85.1us
         servers.rest_mw = frameworks.rest.pkg.createServer({ port: frameworks.rest_mw.port });
         servers.rest_mw._rest.router = new (require('./router'))();
-        //servers.rest_mw._rest.setRoute('/test1', function(req, res, next) { servers.rest._rest.sendResponse(req, res, noop, null, 200, response1); });
+        //servers.rest_mw._rest.setRoute('/test1', function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });
         // 43.3k/s
         servers.rest_mw._rest.setRoute('/test1', function test1(req, res, next) { res.end(response1); });
         // 44.1k/s
@@ -86,9 +89,9 @@ if (cluster.isMaster) {
         function noop(){}
         function processRequest(req, res) {
             if (req.url === path1 && req.method === 'GET') {
-                return servers.rest_ha.rest.sendResponse(req, res, noop, null, 200, response1);
+                return mw.sendResponse(req, res, noop, null, 200, response1);
             }
-            servers.rest._rest.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
+            mw.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
         }
     }
 
@@ -99,9 +102,9 @@ if (cluster.isMaster) {
         servers.rest._rest.processRequest = function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
                 //res.end(response1);
-                return servers.rest._rest.sendResponse(req, res, noop, null, 200, response1);
+                return mw.sendResponse(req, res, noop, null, 200, response1);
             }
-            servers.rest._rest.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
+            mw.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
         }
     }
 
@@ -232,7 +235,7 @@ else {
         function doVerifyResponse(err, rawBody) {
             if (err) { console.log("AR: call err", err); process.exit(); }
             if (verifyResponse && String(rawBody) != response1 && JSON.parse(rawBody) != response1) {
-                console.log("AR: wrong response:", body, response1);
+                console.log("AR: wrong response:", String(rawBody), response1);
                 throw new Error("wrong response")
             }
         }

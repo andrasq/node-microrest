@@ -189,7 +189,7 @@ module.exports = {
                 t.stub(req, 'setEncoding').throws('mock setEncoding error');
                 t.stub(this.rest, 'onError').throws('mock onError error');
                 var spy = t.stub(process.stderr, 'write');
-                this.rest.onRequest(req, mockRes(), noop);
+                this.rest.onRequest(req, mockRes());
                 spy.restore();
                 t.ok(spy.called);
                 t.contains(spy.args[0][0], 'onError error: mock onError error');
@@ -250,13 +250,15 @@ module.exports = {
 
                 'should catch runRoute errors': function(t) {
                     t.stub(this.rest.router, 'runRoute').throws(new Error('runRoute error'));
-                    var spy = t.spy(this.rest, 'sendResponse');
+                    var spy = t.spy(this.rest, '_tryWriteResponse');
                     var spy2 = t.spy(this.rest, 'onError');
-                    this.rest.onRequest(mockReq(), mockRes());
+                    var res = mockRes();
+                    var spy3 = t.spy(res, 'end');
+                    this.rest.onRequest(mockReq(), res);
                     t.ok(spy.called);
-                    t.ok(spy.args[0][3] instanceof Error);
-                    t.ok(spy.args[0][3].debug == 'runRoute error');
+                    t.contains(spy.args[0][3], { debug: 'runRoute error' });
                     t.ok(spy2.called);
+                    t.contains(spy3.args[0][0], '"debug":"runRoute error"');
                     t.done();
                 },
 
@@ -523,16 +525,6 @@ module.exports = {
                 done();
             },
 
-            'should call _doReadBody': function(t) {
-                if (!this.rest._doReadBody) t.skip();
-                var spy = t.spy(this.rest, '_doReadBody');
-                this.rest.readBody(this.req, {}, function(err, body) {
-                    t.ok(spy.called);
-                    t.done();
-                })
-                this.req.emit('end');
-            },
-
             'should gather string chunks': function(t) {
                 var req = this.req;
                 this.rest.readBody(req, {}, function(err, body) {
@@ -630,91 +622,6 @@ module.exports = {
                 },
             },
         },
-
-        'sendResponse': {
-            setUp: function(done) {
-                this.rest = new Rest();
-                this.res = mockRes();
-                done();
-            },
-
-            'should write status code, headers and body': function(t) {
-                var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, noop, null, null, 'mock body', { 'my-header-1': 1 });
-                t.equal(this.res.statusCode, 200);
-                t.contains(this.res._headers, {'my-header-1': 1});
-                t.deepEqual(spyEnd.args[0], ['mock body']);
-
-                var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, noop, null, null, new Buffer('mock body'), { 'my-header-1': 1, 'my-header-2': 2 });
-                t.equal(this.res.statusCode, 200);
-                t.contains(this.res._headers, {'my-header-1': 1, 'my-header-2': 2});
-                t.deepEqual(spyEnd.args[0], [new Buffer('mock body')]);
-
-                var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, noop, null, 201, { mock: 1, body: 2 });
-                t.equal(this.res.statusCode, 201);
-                t.deepEqual(spyEnd.args[0], ['{"mock":1,"body":2}']);
-
-                t.done();
-            },
-
-            'should write erorr': function(t) {
-                var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, noop, new Error(''));
-                t.equal(this.res.statusCode, 500);
-                t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 500, message: 'Internal Error', debug: '' });
-
-                var spyEnd = t.spyOnce(this.res, 'end');
-                var err = new Error('my mock error'); err.code = 'EMOCKE';
-                this.rest.sendResponse(mockReq(), this.res, noop, err);
-                t.equal(this.res.statusCode, 500);
-                t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 'EMOCKE', message: 'my mock error', debug: '' });
-
-                var spyEnd = t.spyOnce(this.res, 'end');
-                this.rest.sendResponse(mockReq(), this.res, noop, new this.rest.HttpError(404, 'my page not found', 'check again'));
-                t.equal(this.res.statusCode, 404);
-                t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 404, message: '404 Not Found', debug: 'my page not found', details: 'check again' });
-
-                t.done();
-            },
-
-            'errors': {
-                'should catch json encode errors': function(t) {
-                    var spyEnd = t.stubOnce(this.res, 'end');
-                    var body = { x: 1, body: body, y: 2, z: 'three' };
-                    body.body = body;
-                    this.rest.sendResponse(mockReq(), this.res, noop, null, 200, body);
-                    t.contains(spyEnd.args[0][0], 'unable to json encode response');
-                    t.contains(spyEnd.args[0][0], ' containing x,body,y,z');
-                    t.contains(spyEnd.args[0][0], ' circular ');
-
-                    t.done();
-                },
-
-                'should catch and return res.setHeader errors': function(t) {
-                    t.stubOnce(this.res, 'setHeader').throws('mock res.setHeader error');
-                    var self = this;
-                    self.rest.sendResponse(mockReq(), self.res, callback, null, 200, 'mock body', {'hdr1': 1});
-                    function callback(err) {
-                        t.ok(err);
-                        t.equal(err, 'mock res.setHeader error')
-                        t.done();
-                    }
-                },
-
-                'should catch and return res.end errors': function(t) {
-                    t.stubOnce(this.res, 'end').throws('mock res.end error');
-                    var self = this;
-                    self.rest.sendResponse(mockReq(), self.res, callback, null, 200, 'mock body');
-                    function callback(err) {
-                        t.ok(err);
-                        t.equal(err, 'mock res.end error')
-                        t.done();
-                    }
-                },
-            },
-        },
     },
 }
 
@@ -744,7 +651,7 @@ function NonRouter( ) {
     this.runRoute = function(rest, req, res, next) {
         rest.readBody(req, res, function(err) {
             if (!err) try { rest.processRequest(req, res, next, req.body) } catch (e) { err = e }
-            if (err) rest.sendResponse(req, res, new rest.HttpError(500, err.message));
+            if (err) rest._tryWriteResponse(res, 500, {}, {code: 500, message: 'Internal Error', debug: err.message });
         })
     };
 }
