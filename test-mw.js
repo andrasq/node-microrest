@@ -139,6 +139,31 @@ module.exports = {
             },
         },
     },
+
+    'parseQuery': {
+        'should parse query strings': function(t) {
+            var tests = [
+                [ "", {} ],
+                [ "abc", { abc: 1 } ],
+                [ "a=1&b=2", { a: 1, b: 2 } ],
+                [ "&&a=1&&&b=2&&", { a: 1, b: 2 } ],
+                [ "a&b&c=&d", { a: 1, b: 1, c: '', d: 1 } ],
+                [ "a=1&a=2&a=3&a", { a: [1, 2, 3, 1] } ],
+
+                [ "a%20b=1&b=%20", { 'a b': 1, b: ' ' } ],
+                [ "a%20b=%20&b=%ff", { 'a b': ' ', b: '%ff' } ],
+                [ "a%20b=%20&b=%7e", { 'a b': ' ', b: '~' } ],
+
+                [ "a[b]=2&b[0]", { 'a[b]': 2, 'b[0]': 1 } ],
+            ];
+
+            for (var i=0; i<tests.length; i++) {
+                t.deepEqual(mw.parseQuery(tests[i][0]), tests[i][1]);
+            }
+
+            t.done();
+        },
+    },
 }
 
 function noop() {}

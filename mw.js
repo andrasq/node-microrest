@@ -81,14 +81,15 @@ function runMwErrorSteps( steps, err, req, res, callback ) {
     }
 }
 
-// simple query string parser, handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, but does not parse a[0] or a[b]
+// simple query string parser
+// handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]
 function parseQuery( str ) {
-    var urldecode = decodeURIComponent;
+    var urldecode = function(s) { try { return decodeURIComponent(s) } catch (e) { return s } };
     var parts = str.split('&');
 
     var hash = {};
     for (var i=0; i<parts.length; i++) {
-        var eq = parts.indexOf('=');
+        var eq = parts[i].indexOf('=');
         var name = (eq < 0) ? urldecode(parts[i]) : urldecode(parts[i].slice(0, eq));
         var value = (eq < 0) ? 1 : urldecode(parts[i].slice(eq + 1));
         if (!name) continue;
