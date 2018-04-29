@@ -107,6 +107,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         },
         function readBodyBeforeMw(req, res, next) {
             (req.body !== undefined) ? next() : rest.readBody(req, res, next);
+            // TODO: do not read body by default, let mw handle it
         },
         // the call middleware stack includes the relevant 'use' and route steps
         // use 'use' steps to parse the query string and body params
@@ -118,6 +119,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     mw.runMwSteps(mwSteps, req, res, function(err1) {
         // post steps are always run, after middleware stack (even if error or call was not routed)
         mw.runMwSteps(route.post, req, res, function(err2) {
+            // TODO: if (req.body === undefined) req.resume();
             if (!err1 && !err2) return callback();
 
             // TODO: maybe emit errors, so can handle even nested errors

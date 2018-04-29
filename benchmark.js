@@ -13,8 +13,8 @@ var frameworks = {
     restify: { pkg: require('restify'), ver: require('restify/package').version, port: 1337 },
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
     restiq: { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
-//    connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
-//    rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
+    connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
+    rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
     rest_ha: { pkg: require('./'), ver: require('./package').version, port: 1347 },
     rest: { pkg: require('./'), ver: require('./package').version, port: 1339 },
     http_buf: { pkg: require('http'), ver: process.version, port: 1344 },
@@ -24,7 +24,9 @@ var frameworks = {
 }
 
 var path1 = '/test1';
+var request1 = new Array(21).join('x');
 var response1 = 'response body\n';
+var response1 = new Array(201).join('y');
 
 if (cluster.isMaster) {
 
@@ -63,21 +65,22 @@ if (cluster.isMaster) {
     if (frameworks.connect) {
         servers.connect = frameworks.connect.pkg();
         servers.connect.use(path1, function(req, res, next) { res.end(response1); next(); })
-        http.createServer(servers.connect).listen(servers.connect.port);
+        http.createServer(servers.connect).listen(frameworks.connect.port);
     }
 
     if (frameworks.rest_mw) {
-        // 44.5k/s 86.6us
+        // 44.1k/s 85.1us
         servers.rest_mw = frameworks.rest.pkg.createServer({ port: frameworks.rest_mw.port });
         servers.rest_mw._rest.router = new (require('./router'))();
         //servers.rest_mw._rest.setRoute('/test1', function(req, res, next) { servers.rest._rest.sendResponse(req, res, noop, null, 200, response1); });
-        // 41k/s
+        // 43.3k/s
         servers.rest_mw._rest.setRoute('/test1', function test1(req, res, next) { res.end(response1); });
-        // 42.6k/s
+        // 44.1k/s
         function noop(){}
     }
 
     if (frameworks.rest_ha) {
+        // 49.3k/s, 76.8us
         servers.rest_ha = frameworks.rest.pkg({ processRequest: processRequest });
         http.createServer(servers.rest_ha).listen(frameworks.rest_ha.port);
         function noop(){}
@@ -85,22 +88,20 @@ if (cluster.isMaster) {
             if (req.url === path1 && req.method === 'GET') {
                 return servers.rest_ha.rest.sendResponse(req, res, noop, null, 200, response1);
             }
-            servers.rest._rest.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, 'path not routed'));
+            servers.rest._rest.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
         }
     }
 
     if (frameworks.rest) {
-        // 48.8k 77.2us
+        // 50.0k 77.1us
         servers.rest = frameworks.rest.pkg.createServer({ port: frameworks.rest.port });
         function noop(){}
         servers.rest._rest.processRequest = function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
                 //res.end(response1);
-                // 31k/s
                 return servers.rest._rest.sendResponse(req, res, noop, null, 200, response1);
-                // 32k/s, 128us stddev 24.1us
             }
-            servers.rest._rest.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, 'path not routed'));
+            servers.rest._rest.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
         }
     }
 
@@ -127,6 +128,7 @@ if (cluster.isMaster) {
         servers.http.listen(frameworks.http.port);
         servers.http.on('request', function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
+                // gather request body, send response
                 var body = '';
                 req.setEncoding('utf8');
                 req.on('data', function(chunk) { body += chunk });
@@ -143,12 +145,14 @@ if (cluster.isMaster) {
         servers.http = frameworks.http.pkg.createServer();
         servers.http.listen(frameworks.http_raw.port);
         servers.http.on('request', function(req, res) {
+            // speed of light test: discard request body, send response
             req.resume();
             req.on('end', function() { res.end(response1) });
         })
     }
 
     if (frameworks.qrpc) {
+        // 145k/s, <33us
         servers.qrpc = frameworks.qrpc.pkg.createServer(function(socket) {
             socket.setNoDelay();
         });
@@ -165,6 +169,7 @@ else {
     console.log("");
 
     var parallelTests = {};
+    var serialTests = {};
     var agents = {};    // reuse all agents, else qrpc consumes all sockets
     var verifyResponse = true;
     var parallelCallCount = 100;
@@ -177,6 +182,7 @@ else {
                 ? frameworks.qrpc.pkg.connect(frameworks[name].port, 'localhost', confirmConnect)
                 : new http.Agent({ keepAlive: true });
             parallelTests[name] = buildTestFunction(name, frameworks[name].port, parallelCallCount);
+            serialTests[name] = buildTestFunction(name, frameworks[name].port, 1);
         }
         setTimeout(runSuite, 100);
 
@@ -186,7 +192,7 @@ else {
         }
     }
 
-    function buildTestFunction(name, port, callCount) {
+    function buildTestFunction( name, port, callCount ) {
         var uri = {
             agent: agents[name],
             //keepAlive: true,
@@ -196,43 +202,51 @@ else {
             path: path1,
         };
 
-        var testBody = new Array(201).join('x');
         var responseIndex = name === 'qrpc' ? 1 : 2;
         var makeCall = name === 'qrpc'
             ? function(cb) { uri.agent.call(uri.path, null, cb) }
-            : function(cb) { microreq(uri, testBody, cb) }
+            : function(cb) { microreq(uri, request1, cb) }
 
         function makeQrpcCb(cb) {
             return function(err, ret) { cb(err, {}, ret) }
+        }
+
+        if (name === 'qrpc' && callCount === 1) return function(callback ) {
+            agents.qrpc.call(path1, request1, function(err, ret) {
+                doVerifyResponse(err, ret);
+                callback();
+            })
         }
 
         return function(callback) {
             var ncalls = callCount, ndone = 0;
             for (var i=0; i<ncalls; i++) makeCall(onBack);
             function onBack(err, res, body) {
-                if (err) { console.log("AR: http err", err); process.exit(); }
-                if (verifyResponse && String(arguments[responseIndex]) != response1 && JSON.parse(arguments[responseIndex]) != response1) {
-                    console.log("AR: wrong response:", err, String(arguments[responseIndex]));
-                    throw new Error("wrong response")
-                }
+                doVerifyResponse(err, arguments[responseIndex]);
                 if (++ndone === ncalls) {
                     process.nextTick(callback);
                 }
             }
         }
+
+        function doVerifyResponse(err, rawBody) {
+            if (err) { console.log("AR: call err", err); process.exit(); }
+            if (verifyResponse && String(rawBody) != response1 && JSON.parse(rawBody) != response1) {
+                console.log("AR: wrong response:", body, response1);
+                throw new Error("wrong response")
+            }
+        }
     }
 
     function runSuite() {
-        console.log("AR: runSuite");
+        console.log("AR: runSuite: req = %sB, res = %sB", request1.length, response1.length);
 
-        // NOTE: to disable, set -d to 0 sec
-        var cmdline = 'wrk -d0s -t2 -c4 http://localhost:%d/test1';
+        var cmdline = 'wrk -d2s -t2 -c4 http://localhost:%d/test1';
 
-        for (var name in frameworks) {
+        if (0) for (var name in frameworks) {
             var cmd = util.format(cmdline, frameworks[name].port);
             console.log("AR: %s %s", name, cmd);
-            if (name !== 'qrpc') child_process.exec(cmd, function(err, stdout, stderr) {
-            })
+            if (name !== 'qrpc') console.log(String(child_process.execSync(cmd)));
         }
         setTimeout(function() {
 
@@ -246,8 +260,12 @@ else {
             qtimeit.bench(parallelTests, function() {
             qtimeit.bench(parallelTests, function() {
 
+            console.log("AR: sequential calls");
+            qtimeit.bench(serialTests, function() {
 
             console.log("AR: Done.");
+            })
+
             }) }) })
         }, 200);
     }
