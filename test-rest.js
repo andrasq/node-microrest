@@ -321,6 +321,21 @@ module.exports = {
             t.done();
         },
 
+        'handler should work as request handler': function(t) {
+            var handler = rest({ processRequest: processRequest });
+            var server = http.createServer(handler).listen(1337);
+            t.expect(1);
+            function processRequest(req, res) {
+                res.end();
+                t.ok(true);
+            }
+            var req = http.request("http://localhost:1337/test", function(res) {
+                server.close();
+                t.done();
+            })
+            req.end();
+        },
+
         'http methods should invoke setRoute': function(t) {
             var handler = rest.createHandler({ router: new NonRouter() });
             var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ];
