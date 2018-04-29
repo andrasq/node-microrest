@@ -222,6 +222,18 @@ module.exports = {
                         t.done();
                     }, 3);
                 },
+
+                'should catch processRequest error': function(t) {
+                    var spy = t.spy(this.rest, 'onError');
+                    t.stub(this.rest, 'processRequest').yields(new Error('mock processRequest error'));
+                    t.stubOnce(this.rest, 'readBody').yields(null, '');
+                    this.rest.onRequest(mockReq(), mockRes(), noop);
+                    setTimeout(function() {
+                        t.ok(spy.called);
+                        t.equal(spy.args[0][0].message, 'mock processRequest error');
+                        t.done();
+                    }, 3);
+                },
             },
 
             'with router': {
@@ -374,7 +386,7 @@ module.exports = {
         'should also return an https server': function(t) {
             var server;
 
-            server = rest.createServer({ protocol: 'https:', key: testKey(), cert: testCert() });
+            server = rest.createServer({ protocol: 'https:', key: mockKey(), cert: mockCert() });
             t.ok(server instanceof https.Server);
 
             try { server.close() } catch (e) { }
@@ -644,6 +656,22 @@ function mockRes() {
     }
 }
 
+function MicroRouter( ) {
+    this.routes = {};
+    this.setRoute = function setRoute(path, method, mw) { this.routes[path] = mw[0] };
+    this.getRoute = function getRoute(path, method) { return this.routes[path] || null };
+    this.deleteRoute = function deleteRoute(path, method) { delete this.routes[path] };
+    var self = this;
+    this.runRoute = function runRoute(rest, req, res, next) {
+        rest.readBody(req, res, function(err) {
+            if (err) return next(err);
+            if (self.routes[req.url]) return self.routes[req.url](req, res, next);
+            // FIXME: returns as a 404 embedded inside a 500 error
+            next(new rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
+        })
+    }
+}
+
 function NonRouter( ) {
     this.setRoute = function(path, method, mw) { new Error('router does not support mw') };
     this.deleteRoute = function(path, method) { return null };
@@ -657,7 +685,7 @@ function NonRouter( ) {
 }
 
 // openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout localhost.key -out localhost.cert
-function testKey( ) {
+function mockKey( ) {
     return [
 "-----BEGIN PRIVATE KEY-----",
 "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDflnO1vQ4cCAut",
@@ -692,7 +720,7 @@ function testKey( ) {
 }
 
 // openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout localhost.key -out localhost.cert
-function testCert( ) {
+function mockCert( ) {
 return [
 "-----BEGIN CERTIFICATE-----",
 "MIIDTTCCAjWgAwIBAgIJAJus4stIQDJqMA0GCSqGSIb3DQEBCwUAMD0xCzAJBgNV",
