@@ -56,10 +56,12 @@ function createServer( options, callback ) {
 }
 
 function createHandler( options ) {
-    var rest = new Rest(options);
+    options = options || {};
+    var rest = options.rest || new Rest(options);
     var handler = rest.onRequest;
     handler.rest = rest;
 
+    // TODO: allow use('/path') with (mw), (mw1, mw2), ([mw])
     handler.use = function use(mw) { mw.length === 3 ? rest.setRoute('use', mw) : rest.setRoute('err', mw) };
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     httpMethods.forEach(function(method) {
@@ -112,7 +114,7 @@ function Rest( options ) {
     };
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
-    this.onRequest = function(req, res, next) { self._onRequest(req, res); if (next) next(); }
+    this.onRequest = function(req, res, next) { self._onRequest(req, res, next); }
 }
 
 
