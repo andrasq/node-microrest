@@ -155,10 +155,9 @@ Rest.prototype.readBody = function readBody( req, res, next ) {
     var rest = this, body = '', chunks = null, bodySize = 0;
 
     req.on('data', function(chunk) {
-        if (bodySize >= rest.bodySizeLimit) return;
-        if (typeof chunk === 'string') (!body ? body = chunk : body += chunk);
-        else (chunks ? chunks.push(chunk) : chunks = new Array(chunk));
-        bodySize += chunk.length;
+        if ((bodySize += chunk.length) >= rest.bodySizeLimit) return;
+        if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
+        else (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk));
     })
     req.on('error', function(err) {
         next(err);
