@@ -5,13 +5,17 @@
 var util = require('util');
 var http = require('http');
 
-module.exports = {
+var mw = module.exports = {
     HttpError: HttpError,
     repeatUntil: repeatUntil,
     runMwSteps: runMwSteps,
     runMwErrorSteps: runMwErrorSteps,
     parseQuery: parseQuery,
     sendResponse: sendResponse,
+    mwReadBody: mwReadBody,
+    mwParseQuery: mwParseQuery,
+    mwParseBody: mwParseBody,
+    writeResponse: writeResponse,
 }
 
 
@@ -102,20 +106,64 @@ function parseQuery( str ) {
     return hash;
 }
 
+function mwReadBody( req, res, next ) {
+    if (req.body !== undefined) return next();
+    bodySizeLimit = Infinity;
+// TODO: use a builder function to configure bodySizeLimit
+    var body = '', chunks = null, bodySize = 0;
+
+    req.on('data', function(chunk) {
+        if ((bodySize += chunk.length) >= bodySizeLimit) return;
+        if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
+        else (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk));
+    })
+    req.on('error', function(err) {
+        next(err);
+    })
+    req.on('end', function() {
+        if (bodySize > bodySizeLimit) return next((new mw.HttpError(400, 'max body size exceeded')), 1);
+        body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : '');
+        if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
+        req.body = body;
+        next(null, body);
+    })
+}
+
+function mwParseQuery( req, res, next ) {
+    var query = mw.parseQuery(req.query);
+    req.params = req.params || {};
+    for (var k in query) req.params[k] = query[k];
+    next();
+}
+
+function mwParseBody( req, res, next ) {
+    var query = req.body ? mw.parseQuery(String(req.body)) : {};
+    req.params = req.params || {};
+    for (var k in query) req.params[k] = query[k];
+    next();
+}
+
 function sendResponse( req, res, next, err, statusCode, body, headers ) {
-    if (err) {
-        statusCode = statusCode || err.statusCode || 500;
+    try { return mw.writeResponse(res, err || statusCode, body, headers) }
+    catch (err2) { return next(err2) }
+}
+
+function writeResponse( res, statusCode, body, headers ) {
+    if (typeof statusCode === 'object' && statusCode) {
+        var err = statusCode;
+        statusCode = err.statusCode || 500;
         body = { error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '') };
         if (err.details) body.details = '' + (err.details);
         body = JSON.stringify(body);
         headers = undefined;
-    } else if (typeof body !== 'string' && !Buffer.isBuffer(body)) {
+    }
+    else if (typeof body !== 'string' && !Buffer.isBuffer(body)) {
         var json = tryJsonEncode(body);
         if (! (json instanceof Error)) body = json;
-        else return this.sendResponse(req, res, next, new this.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body)));
+        else return mw.writeResponse(res, new mw.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body)));
     }
     var err2 = tryWriteResponse(res, statusCode, headers, body);
-    next(err2);
+    if (err2) { console.error('%s -- microrest: cannot send response:', new Date().toISOString(), err2); throw(err2) }
 
     function tryJsonEncode( body ) {
         try { return JSON.stringify(body) } catch (err) { return err } }
