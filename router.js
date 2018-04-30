@@ -107,7 +107,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         },
         function readBodyBeforeMw(req, res, next) {
 // TODO: readBody should live in mw, but also needed by rest.js
-            (req.body !== undefined) ? next() : rest.readBody(req, res, next);
+            (req.body !== undefined) ? next() : rest.readBody(req, res, function(err, body) { next(err) });
             // TODO: do not read body by default, let mw handle it
         },
         // the call middleware stack includes the relevant 'use' and route steps

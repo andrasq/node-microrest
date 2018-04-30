@@ -59,11 +59,7 @@ function repeatUntil( fn, test, callback ) {
 // run the middleware stack until one returns next(err) or next(false)
 function runMwSteps( steps, req, res, callback ) {
     var ix = 0;
-    //repeatUntil(runEachStep, test, callback);
-    repeatUntil(runEachStep, test, function(err) {
-//console.log("AR: back", err, callback);
-callback(err);
-    })
+    repeatUntil(runEachStep, test, callback);
     function runEachStep(next) {
         if (ix >= steps.length) return next(null, 'done');
         steps[ix++](req, res, next);

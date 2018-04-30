@@ -15,16 +15,15 @@ var basePort = 1337;
 var frameworks = {
     restify: { pkg: require('restify'), ver: require('restify/package').version, port: 1337 },
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
-    restiq: { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
+    restiq:  { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
     connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
     rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
-    // FIXME: without restiq rest_mw stalls
     rest_ha: { pkg: require('./'), ver: require('./package').version, port: 1347 },
-    rest: { pkg: require('./'), ver: require('./package').version, port: 1339 },
+    rest:    { pkg: require('./'), ver: require('./package').version, port: 1339 },
     http_buf: { pkg: require('http'), ver: process.version, port: 1344 },
-    http: { pkg: require('http'), ver: process.version, port: 1340 },
+    http:     { pkg: require('http'), ver: process.version, port: 1340 },
     http_raw: { pkg: require('http'), ver: process.version, port: 1343 },
-    qrpc: { pkg: require('qrpc'), ver: require('qrpc/package').version, port: 1341 },
+    qrpc:    { pkg: require('qrpc'), ver: require('qrpc/package').version, port: 1341 },
 }
 
 var path1 = '/test1';
