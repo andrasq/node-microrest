@@ -57,8 +57,8 @@ Router.prototype.deleteRoute = function deleteRoute( path, method ) {
     if (this.rexmap[path]) delete this.rexmap[path].methods[method];
 }
 
-Router.prototype.getRoute = function getRoute( path, method ) {
-    var route = {
+Router.prototype.getRoute = function getRoute( path, method, route ) {
+    route = route || {
         path: path,
         method: method,
         pre: this.steps.pre,            // run before route is mapped
@@ -72,7 +72,7 @@ Router.prototype.getRoute = function getRoute( path, method ) {
     if (path[0] !== '/') return this.steps[path];       // pre-, post-, use- and err-middleware
 
     route.mw = this.maproutes[path] && (this.maproutes[path][method] || this.maproutes[path]['_ANY_']);
-    if (route.mw) return route;                  // direct-mapped routes
+    if (route.mw) return route;                         // direct-mapped routes
 
     for (var i=0; i<this.rexroutes.length; i++) {
         var rex = this.rexroutes[i];
@@ -90,34 +90,35 @@ Router.prototype.getRoute = function getRoute( path, method ) {
 // apply the steps defined for the route to the http request
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var self = this;
-    var route = this.getRoute();
-    var mwRoute;
+    var route = this.getRoute(req.url, req.method) || this.getRoute();
 
     var mwSteps = [
         // pre steps are always run, before call is routed
         function runPreRouteSetup(req, res, next) {
-            req.params = {};
+            if (!route.pre.length) return next();
             mw.runMwSteps(route.pre, req, res, next);
         },
         function doRoute(req, res, next) {
-            mwRoute = self.getRoute(req.url, req.method);
-            if (!route) return next(new rest.HttpError(rest.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
+            if (req.url !== route.url || req.method !== route.method) self.getRoute(req.url, req.method, route);
+            if (!route.mw) return next(new rest.HttpError(rest.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
+            req.params = req.params || {};
             for (var k in route.params) req.params[k] = route.params[k];
             next();
         },
         function readBodyBeforeMw(req, res, next) {
+// TODO: readBody should live in mw, but also needed by rest.js
             (req.body !== undefined) ? next() : rest.readBody(req, res, next);
             // TODO: do not read body by default, let mw handle it
         },
         // the call middleware stack includes the relevant 'use' and route steps
         // use 'use' steps to parse the query string and body params
         function runMw(req, res, next) {
-            if (!mwRoute) return next();
-            mw.runMwSteps(mwRoute.mw, req, res, next);
+            mw.runMwSteps(route.mw, req, res, next);
         },
     ];
     mw.runMwSteps(mwSteps, req, res, function(err1) {
         // post steps are always run, after middleware stack (even if error or call was not routed)
+        if (!err1 && !route.post.length) return callback();
         mw.runMwSteps(route.post, req, res, function(err2) {
             // TODO: if (req.body === undefined) req.resume();
             if (!err1 && !err2) return callback();
