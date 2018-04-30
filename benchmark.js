@@ -11,12 +11,14 @@ var qtimeit = require('qtimeit');
 
 var mw = require('./mw');
 
+var basePort = 1337;
 var frameworks = {
     restify: { pkg: require('restify'), ver: require('restify/package').version, port: 1337 },
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
     restiq: { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
     connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
     rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
+    // FIXME: without restiq rest_mw stalls
     rest_ha: { pkg: require('./'), ver: require('./package').version, port: 1347 },
     rest: { pkg: require('./'), ver: require('./package').version, port: 1339 },
     http_buf: { pkg: require('http'), ver: process.version, port: 1344 },
@@ -36,7 +38,6 @@ if (cluster.isMaster) {
     cluster.fork();
 
     var servers = {};
-    var basePort = 1337;
 
     if (frameworks.restify) {
         // 13.8k/s 259us
@@ -65,7 +66,7 @@ if (cluster.isMaster) {
     }
 
     if (frameworks.connect) {
-        // 44.0k/s 85.3us
+        // 44.5k/s 85us
         servers.connect = frameworks.connect.pkg();
         servers.connect.use(path1, function(req, res, next) { res.end(response1); next(); })
         http.createServer(servers.connect).listen(frameworks.connect.port);
@@ -73,7 +74,7 @@ if (cluster.isMaster) {
 
     if (frameworks.rest_mw) {
         // 44.1k/s 85.1us
-        servers.rest_mw = frameworks.rest.pkg.createServer({ port: frameworks.rest_mw.port });
+        servers.rest_mw = frameworks.rest_mw.pkg.createServer({ port: frameworks.rest_mw.port });
         servers.rest_mw._rest.router = new (require('./router'))();
         //servers.rest_mw._rest.setRoute('/test1', function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });
         // 43.3k/s
@@ -84,14 +85,15 @@ if (cluster.isMaster) {
 
     if (frameworks.rest_ha) {
         // 49.3k/s, 76.8us
-        servers.rest_ha = frameworks.rest.pkg({ processRequest: processRequest });
+        // 46.6k/s routed, 82.7us
+        servers.rest_ha = frameworks.rest_ha.pkg({ processRequest: processRequest });
         http.createServer(servers.rest_ha).listen(frameworks.rest_ha.port);
         function noop(){}
         function processRequest(req, res) {
             if (req.url === path1 && req.method === 'GET') {
                 return mw.sendResponse(req, res, noop, null, 200, response1);
             }
-            mw.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
+            mw.sendResponse(req, res, noop, new servers.rest_ha._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
         }
     }
 
