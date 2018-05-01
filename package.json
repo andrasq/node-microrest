@@ -6,6 +6,8 @@
   "main": "rest.js",
   "license": "Apache-2.0",
   "author": "Andras",
+  "repository": "https://github.com/andrasq/node-microrest#readme",
+  "readme": "see README.md in the root directory",
 
   "scripts": {
     "xpretest": "npm install qnit",
