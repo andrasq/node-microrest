@@ -58,28 +58,24 @@ Router.prototype.deleteRoute = function deleteRoute( path, method ) {
 }
 
 Router.prototype.getRoute = function getRoute( path, method, route ) {
-    route = route || {
-        path: path,
-        method: method,
-        pre: this.steps.pre,            // run before route is mapped
-        post: this.steps.post,          // run after route mw finishes
-        err: this.steps.err,            // run on mw error
-        mw: null,                       // the path-specific mw stack
-        params: {}                      // extracted path parameters
-    };
+    var mw;
 
-    if (!path) return route;                            // pre-route steps
+    if (!path) return null;                             // path is required
     if (path[0] !== '/') return this.steps[path];       // pre-, post-, use- and err-middleware
 
-    route.mw = this.maproutes[path] && (this.maproutes[path][method] || this.maproutes[path]['_ANY_']);
-    if (route.mw) return route;                         // direct-mapped routes
+    // TODO: maybe match on path prefix, not the whole path (to let mw handle url param extraction)
+
+    mw = this.maproutes[path] && (this.maproutes[path][method] || this.maproutes[path]['_ANY_']);
+    if (mw) return { mw: mw };                          // direct-mapped routes
 
     for (var i=0; i<this.rexroutes.length; i++) {
         var rex = this.rexroutes[i];
         var match = rex.regex.exec(path);
-        if (match && (route.mw = (rex.methods[method] || rex.methods['_ANY_']))) {
+        if (match && (mw = (rex.methods[method] || rex.methods['_ANY_']))) {
+            //return { mw: mw, match: match, names: rex.names }
+            var route = { mw: mw, params: {} };
             for (var name in rex.names) route.params[name] = match[rex.names[name]];
-            route.path = rex.path;
+            //route.path = rex.path;
             return route;                               // regex-mapped routes
         }
     }
@@ -90,43 +86,43 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
 // apply the steps defined for the route to the http request
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var self = this;
-    var route = this.getRoute(req.url, req.method) || this.getRoute();
+    var route;
 
     var mwSteps = [
         // pre steps are always run, before call is routed
         function runPreRouteSetup(req, res, next) {
-            if (!route.pre.length) return next();
-            mw.runMwSteps(route.pre, req, res, next);
+            if (!self.steps.pre.length) return next();
+            mw.runMwSteps(self.steps.pre, req, res, next);
         },
         function doRoute(req, res, next) {
-            if (req.url !== route.url || req.method !== route.method) self.getRoute(req.url, req.method, route);
-            if (!route.mw) return next(new rest.HttpError(rest.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
-            req.params = req.params || {};
-            for (var k in route.params) req.params[k] = route.params[k];
+            route = self.getRoute(req.url, req.method);
+            if (!route) return next(rest.HttpError(rest.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
+            if (route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
             next();
         },
         function readBodyBeforeMw(req, res, next) {
-// TODO: readBody should live in mw, but also needed by rest.js
+            // TODO: readBody should live in mw, but also needed by rest.js
             (req.body !== undefined) ? next() : rest.readBody(req, res, function(err, body) { next(err) });
             // TODO: do not read body by default, let mw handle it
         },
         // the call middleware stack includes the relevant 'use' and route steps
         // use 'use' steps to parse the query string and body params
         function runMw(req, res, next) {
-            mw.runMwSteps(route.mw, req, res, next);
+            mw.runMwSteps(route.mw || route, req, res, next);
         },
     ];
+
     mw.runMwSteps(mwSteps, req, res, function(err1) {
         // post steps are always run, after middleware stack (even if error or call was not routed)
-        if (!err1 && !route.post.length) return callback();
-        mw.runMwSteps(route.post, req, res, function(err2) {
+        if (!err1 && !self.steps.post.length) return callback();
+        mw.runMwSteps(self.steps.post, req, res, function(err2) {
             // TODO: if (req.body === undefined) req.resume();
             if (!err1 && !err2) return callback();
 
             // TODO: maybe emit errors, so can handle even nested errors
 
             // error handlers are run if any mw step returned error
-            mw.runMwErrorSteps(route.err, err1 || err2, req, res, function(err3) {
+            mw.runMwErrorSteps(self.steps.err, err1 || err2, req, res, function(err3) {
                 if (err3 === err1) console.error('microrest-router: unhandled mw error', err3);
                 if (err3 === err2) console.error('microrest-router: unhandled post mw error', err3);
                 if (err1 && err2) console.error('microrest-router: double-fault: unhandled error from post mw', err2);
@@ -145,7 +141,7 @@ Router.prototype.makeCapturingRegex = function makeCapturingRegex( rex, path ) {
     for (var i=0; i<patt.names.length; i++) rex.names[patt.names[i]] = i + 1;
 }
 
-// borrowed from restiq: (routeName = path)
+// borrowed from restiq: (pass in routeName = path)
 // build a regex to match the routeName and extract any /:param parameters
 Router.prototype._buildCapturingRegex = function _buildCapturingRegex( routeName ) {
     var match, names = new Array();

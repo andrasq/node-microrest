@@ -11,6 +11,27 @@ module.exports = {
         done();
     },
 
+    'getRoute': {
+        'should return direct-mapped route': function(t) {
+            this.router.setRoute('/test/path', this.fn1);
+            t.deepEqual(this.router.getRoute('/test/path'), { mw: [this.fn1] });
+            t.done();
+        },
+
+        'should return regex route': function(t) {
+            this.router.setRoute('/:name1/:name2/other', this.fn2);
+            var route = this.router.getRoute('/test/path/other');
+            t.deepEqual(route, { mw: [this.fn2], params: { name1: 'test', name2: 'path' } });
+            t.done();
+        },
+
+        'should return null if route not mapped': function(t) {
+            t.equal(this.router.getRoute(), null);
+            t.equal(this.router.getRoute('/other/path'), null);
+            t.done();
+        },
+    },
+
     'setRoute': {
         'should route a use step': function(t) {
             this.router.setRoute('use', this.fn1);
@@ -21,16 +42,6 @@ module.exports = {
             t.deepEqual(this.router.getRoute('pre'), []);
             t.deepEqual(this.router.getRoute('post'), []);
             t.deepEqual(this.router.getRoute('nonesuch'), null);
-            t.done();
-        },
-
-        'should return universal routing info': function(t) {
-            this.router.setRoute('use', [this.fn1]);
-            this.router.setRoute('use', [this.fn2]);
-            this.router.setRoute('err', [this.fne]);
-            t.contains(this.router.getRoute(), { pre: [], post: [], err: [this.fne] });
-            this.router.setRoute('/test/path', [this.fn1]);
-            t.deepEqual(this.router.getRoute('/test/path').mw, [this.fn1, this.fn2, this.fn1]);
             t.done();
         },
 
@@ -200,6 +211,18 @@ module.exports = {
                 t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'use2', 'path1', 'post1', 'err1']);
                 t.done();
             })
+        },
+
+        'should catch error in use step': function(t) {
+t.skip();
+        },
+
+        'should catch error in mw step': function(t) {
+t.skip();
+        },
+
+        'should catch error in mw callback': function(t) {
+t.skip();
         },
 
         'mw should stop on error': function(t) {
