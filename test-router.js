@@ -233,6 +233,116 @@ t.skip();
 t.skip();
         },
     },
+
+    'MiniRouter': {
+        'setRoute should accept functions': function(t) {
+            var router = new Router.MiniRouter();
+            router.setRoute(noop);
+            router.setRoute('/path1', noop);
+            t.done();
+        },
+
+        'setRoute should accept arrays of functions': function(t) {
+            var router = new Router.MiniRouter();
+            router.setRoute('/path1', []);
+            router.setRoute('/path2', [noop]);
+            router.setRoute('/path3', [noop, noop, noop]);
+            t.done();
+        },
+
+        'getRoute should return the mw steps or null': function(t) {
+            var router = new Router.MiniRouter();
+            router.setRoute('/path1', []);
+            router.setRoute('/path2', noop);
+            router.setRoute('/path3', [noop]);
+            t.deepEqual(router.getRoute('/path0'), null);
+            t.deepEqual(router.getRoute('/path1'), []);
+            t.deepEqual(router.getRoute('/path2'), [noop]);
+            t.deepEqual(router.getRoute('/path3'), [noop]);
+            t.done();
+        },
+
+        'deleteRoute should remove route': function(t) {
+            var router = new Router.MiniRouter();
+            router.setRoute('/path1', noop);
+            router.deleteRoute('/path1');
+            t.equal(router.getRoute('path1'), null);
+            t.done();
+        },
+
+        'setRoute should reject non-function mw': function(t) {
+            var router = new Router.MiniRouter();
+            t.throws(function(){ router.setRoute(123) }, /must be a function/);
+            t.throws(function(){ router.setRoute('/path', 123) }, /must be a function/);
+            t.throws(function(){ router.setRoute('/path', {}) }, /must be a function/);
+            t.done();
+        },
+
+        'runRoute should run use and mw steps': function(t) {
+            var router = new Router.MiniRouter();
+            var calls = [];
+            router.setRoute(function(req, res, next) { calls.push('use1'); next() });
+            router.setRoute(function(req, res, next) { calls.push('use2'); next() });
+            router.setRoute('/test/path', [function(req, res, next) { calls.push('path1'); next() }]);
+            var rest = { readBody: function(req, res, next) { req.body = "mock body"; next() } };
+            var req = { url: '/test/path', method: 'GET' };
+            var res = {};
+            router.runRoute(rest, req, res, function(err) {
+                t.ok(!err)
+                t.deepEqual(calls, ['use1', 'use2', 'path1',]);
+                t.done();
+            })
+        },
+
+        'runRoute should stop on next(false)': function(t) {
+            var router = new Router.MiniRouter();
+            var called = false;
+            router.setRoute('/path1', [
+                function(req, res, next) { next(false) },
+                function(req, res, next) { called = true; next() }
+            ]);
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.ok(!err);
+                t.ok(!called);
+                t.done();
+            })
+        },
+
+        'runRoute should return error on unrouted path': function(t) {
+            var router = new Router.MiniRouter();
+            router.runRoute({}, { url: '/test/url' }, {}, function(err) {
+                t.ok(err);
+                t.contains(err.message, 'not routed');
+                t.done();
+            })
+        },
+
+        'runRoute should return mw error and stop mw chain': function(t) {
+            var router = new Router.MiniRouter();
+            var called = false;
+            router.setRoute('/path1', [
+                function(req, res, next) { next() },
+                function(req, res, next) { next('mw error') },
+                function(req, res, next) { called = true; next() }
+            ]);
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.ok(err);
+                t.equal(err, 'mw error');
+                t.ok(!called);
+                t.done();
+            })
+        },
+
+        'runRoute should catch and return mw exception': function(t) {
+            var router = new Router.MiniRouter();
+            router.setRoute('/path1', function(req, res, next) { throw 'mw error' });
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.ok(err);
+                t.equal(err, 'mw error');
+                t.done();
+            })
+        },
+    },
 }
 
 function noop(){}

@@ -17,13 +17,13 @@ function MiniRouter( ) {
     this.routes = {};
 }
 MiniRouter.prototype.setRoute = function setRoute( path, mw ) {
-    if (typeof path === 'function') {
-        this.steps.push(path);
-    } else if (typeof mw === 'string') {
-        if (typeof mw !== 'function')
-        this.routes[path] = this.routes[path] || new Array();
-        this.routes[path].concat(mw);
-    } else throw new Error('middleware step must be a function');
+    if (typeof path === 'function') this.use.push(path);
+    else {
+        var mwSteps = this.routes[path] = this.use.concat(mw);
+        for (var i=this.use.length; i<mwSteps.length; i++) {
+            if (typeof mwSteps[i] !== 'function') throw new Error('middleware step must be a function');
+        }
+    }
 }
 MiniRouter.prototype.getRoute = function getRoute( path, method ) {
     return this.routes[path];
@@ -33,14 +33,11 @@ MiniRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
 }
 MiniRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
     var self = this;
-    runMwSteps(self.use, function(err) {
+    var mwSteps = self.routes[req.url];
+    if (!mwSteps) return next(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
+    mw.runMwSteps(mwSteps, req, res, function(err) {
         if (err) return next(err);
-        var mw = self.routes[req.url];
-        if (!mw) return next(new Error('Cannot ' + req.method + ' ' + req.url));
-        runMwSteps(mw, function(err2) {
-            if (err2) return next(err2);
-            next();
-        })
+        next();
     })
 }
 
