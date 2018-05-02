@@ -28,7 +28,6 @@ var frameworks = {
 
 var path1 = '/test1';
 var request1 = new Array(21).join('x');
-var response1 = 'response body\n';
 var response1 = new Array(201).join('y');
 
 if (cluster.isMaster) {
@@ -38,17 +37,34 @@ if (cluster.isMaster) {
 
     var servers = {};
 
+    function readBody( req, res, next ) {
+        if (res.body !== undefined) return next();
+
+        req.encoding = 'utf8';
+        var body = '';
+        req.on('data', function(chunk) {
+            body += chunk
+        })
+        req.on('end', function() {
+            req.body = body;
+            next();
+        })
+    }
+
     if (frameworks.restify) {
         // 13.8k/s 259us
         servers.restify = frameworks.restify.pkg.createServer();
         servers.restify.listen(frameworks.restify.port);
-        servers.restify.get(path1, function(req, res, next) { res.send(200, response1); next(); })
+        servers.restify.use(readBody);
+        servers.restify.get(path1, function(req, res, next) { res.send(200, response1); next(); })      // no res.send in restify 5.x and up
+        //servers.restify.get(path1, function(req, res, next) { res.end(response1); next(); })
     }
 
     if (frameworks.express) {
         // 20.3k/s 182us
         servers.express = frameworks.express.pkg();
         servers.express.listen(frameworks.express.port);
+        servers.express.use(readBody);
         servers.express.get(path1, function(req, res, next) { res.status(200).send(response1); next(); })
         // 12.3k/s 344us stddev 59.1us
         //servers.express.get(path1, function(req, res, next) { res.status(200).send(response1); })
@@ -61,12 +77,14 @@ if (cluster.isMaster) {
         // 13.8k/s 259us
         servers.restiq = frameworks.restiq.pkg.createServer({ restify: true });
         servers.restiq.listen(frameworks.restiq.port);
+        servers.express.use(readBody);
         servers.restiq.get(path1, function(req, res, next) { res.send(200, response1); next(); })
     }
 
     if (frameworks.connect) {
         // 44.5k/s 85us
         servers.connect = frameworks.connect.pkg();
+        servers.express.use(readBody);
         servers.connect.use(path1, function(req, res, next) { res.end(response1); next(); })
         http.createServer(servers.connect).listen(frameworks.connect.port);
     }
@@ -132,11 +150,7 @@ if (cluster.isMaster) {
         servers.http.listen(frameworks.http.port);
         servers.http.on('request', function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
-                // gather request body, send response
-                var body = '';
-                req.setEncoding('utf8');
-                req.on('data', function(chunk) { body += chunk });
-                req.on('end', function() {
+                readBody(req, res, function(err) {
                     res.end(response1);
                 })
             }
@@ -258,13 +272,13 @@ else {
             qtimeit.bench.visualize = true;
             qtimeit.bench.showRunDetails = false;
 
-            console.log("AR: bursts of %d calls", parallelCallCount);
+            console.log("\nAR: bursts of %d parallel calls\n", parallelCallCount);
             if (1)
             qtimeit.bench(parallelTests, function() {
             qtimeit.bench(parallelTests, function() {
             qtimeit.bench(parallelTests, function() {
 
-            console.log("AR: sequential calls");
+            console.log("\nAR: sequential calls:\n");
             qtimeit.bench(serialTests, function() {
 
             console.log("AR: Done.");
