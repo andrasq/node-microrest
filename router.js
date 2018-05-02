@@ -26,13 +26,15 @@ NanoRouter.prototype.setRoute = function setRoute( path, mw ) {
     }
 }
 NanoRouter.prototype.getRoute = function getRoute( path, method ) {
-    return this.routes[path];
+    var mwSteps = this.routes[path];
+    while (!mwSteps && path.length > 1) mwSteps = this.routes[path = path.slice(path, path.lastIndexOf('/')) || '/'];
+    return mwSteps;
 }
 NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
     delete this.routes[path];
 }
 NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
-    var mwSteps = this.routes[req.url];
+    var mwSteps = this.getRoute(req.url);
     if (!mwSteps) return next(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
     mw.runMwSteps(mwSteps, req, res, function(err) {
         if (err) return next(err);

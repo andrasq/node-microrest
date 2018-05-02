@@ -262,6 +262,18 @@ t.skip();
             t.done();
         },
 
+        'getRoute should match a routed prefix': function(t) {
+            var router = new Router.NanoRouter();
+            router.setRoute('/', [noop]);
+            router.setRoute('/path', [noop, noop]);
+            router.setRoute('/path/name', [noop, noop, noop]);
+            t.deepEqual(router.getRoute('/path/name'), [noop, noop, noop]);
+            t.deepEqual(router.getRoute('/path/othername'), [noop, noop]);
+            t.deepEqual(router.getRoute('/otherpath'), [noop]);
+            t.deepEqual(router.getRoute('withoutslash'), null);
+            t.done();
+        },
+
         'deleteRoute should remove route': function(t) {
             var router = new Router.NanoRouter();
             router.setRoute('/path1', noop);
