@@ -12,11 +12,12 @@
 var http = require('http');
 var https = require('https');
 
-module.exports = createHandler;
+var rest = module.exports = createHandler;
 module.exports.Rest = Rest;
 module.exports.HttpError = HttpError;
 module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
+module.exports = toStruct(module.exports);
 
 function createServer( options, callback ) {
     options = options || {};
@@ -61,11 +62,10 @@ function createHandler( options ) {
     var handler = rest.onRequest;
     handler.rest = rest;
 
-    // TODO: allow use('/path') with (mw), (mw1, mw2), ([mw])
     handler.use = function use(mw) {
         typeof mw === 'string' ? rest.setRoute(arguments[0], arguments[1]) : rest.setRoute(mw.length === 4 ? 'err' : 'use', mw);
     }
-// TODO: are http method aliases needed for the handler?
+
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     httpMethods.forEach(function(method) {
         var fn = function( path, mw ) { return rest.setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
@@ -75,6 +75,13 @@ function createHandler( options ) {
     handler.del = handler.delete;
 
     return handler;
+}
+
+function listen( options, callback ) {
+    if (!callback && typeof options === 'function') { callback = options; options = null }
+    options = options || { port: 0 };
+    port = options.port || options;
+    rest.createServer(options, callback);
 }
 
 // ----------------------------------------------------------------
