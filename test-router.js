@@ -234,16 +234,16 @@ t.skip();
         },
     },
 
-    'MiniRouter': {
+    'NanoRouter': {
         'setRoute should accept functions': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             router.setRoute(noop);
             router.setRoute('/path1', noop);
             t.done();
         },
 
         'setRoute should accept arrays of functions': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             router.setRoute('/path1', []);
             router.setRoute('/path2', [noop]);
             router.setRoute('/path3', [noop, noop, noop]);
@@ -251,7 +251,7 @@ t.skip();
         },
 
         'getRoute should return the mw steps or null': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             router.setRoute('/path1', []);
             router.setRoute('/path2', noop);
             router.setRoute('/path3', [noop]);
@@ -263,7 +263,7 @@ t.skip();
         },
 
         'deleteRoute should remove route': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             router.setRoute('/path1', noop);
             router.deleteRoute('/path1');
             t.equal(router.getRoute('path1'), null);
@@ -271,7 +271,7 @@ t.skip();
         },
 
         'setRoute should reject non-function mw': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             t.throws(function(){ router.setRoute(123) }, /must be a function/);
             t.throws(function(){ router.setRoute('/path', 123) }, /must be a function/);
             t.throws(function(){ router.setRoute('/path', {}) }, /must be a function/);
@@ -279,7 +279,7 @@ t.skip();
         },
 
         'runRoute should run use and mw steps': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             var calls = [];
             router.setRoute(function(req, res, next) { calls.push('use1'); next() });
             router.setRoute(function(req, res, next) { calls.push('use2'); next() });
@@ -295,7 +295,7 @@ t.skip();
         },
 
         'runRoute should stop on next(false)': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             var called = false;
             router.setRoute('/path1', [
                 function(req, res, next) { next(false) },
@@ -309,7 +309,7 @@ t.skip();
         },
 
         'runRoute should return error on unrouted path': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             router.runRoute({}, { url: '/test/url' }, {}, function(err) {
                 t.ok(err);
                 t.contains(err.message, 'not routed');
@@ -318,7 +318,7 @@ t.skip();
         },
 
         'runRoute should return mw error and stop mw chain': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             var called = false;
             router.setRoute('/path1', [
                 function(req, res, next) { next() },
@@ -334,7 +334,7 @@ t.skip();
         },
 
         'runRoute should catch and return mw exception': function(t) {
-            var router = new Router.MiniRouter();
+            var router = new Router.NanoRouter();
             router.setRoute('/path1', function(req, res, next) { throw 'mw error' });
             router.runRoute({}, { url: '/path1' }, {}, function(err) {
                 t.ok(err);

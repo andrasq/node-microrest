@@ -7,16 +7,16 @@
 'use strict';
 
 module.exports = Router;
-module.exports.MiniRouter = MiniRouter;
+module.exports.NanoRouter = NanoRouter;
 
 var mw = require('./mw');
 
 
-function MiniRouter( ) {
+function NanoRouter( ) {
     this.use = new Array();
     this.routes = {};
 }
-MiniRouter.prototype.setRoute = function setRoute( path, mw ) {
+NanoRouter.prototype.setRoute = function setRoute( path, mw ) {
     if (typeof path === 'function') this.use.push(path);
     else {
         var mwSteps = this.routes[path] = this.use.concat(mw);
@@ -25,15 +25,14 @@ MiniRouter.prototype.setRoute = function setRoute( path, mw ) {
         }
     }
 }
-MiniRouter.prototype.getRoute = function getRoute( path, method ) {
+NanoRouter.prototype.getRoute = function getRoute( path, method ) {
     return this.routes[path];
 }
-MiniRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
+NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
     delete this.routes[path];
 }
-MiniRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
-    var self = this;
-    var mwSteps = self.routes[req.url];
+NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
+    var mwSteps = this.routes[req.url];
     if (!mwSteps) return next(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
     mw.runMwSteps(mwSteps, req, res, function(err) {
         if (err) return next(err);
