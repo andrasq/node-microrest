@@ -16,13 +16,13 @@ function NanoRouter( ) {
     this.use = new Array();
     this.routes = {};
 }
-NanoRouter.prototype.setRoute = function setRoute( path, mw ) {
+NanoRouter.prototype.setRoute = function setRoute( path, method, mw ) {
+    if (!mw) { mw = method; method = '_ANY_' }
     if (typeof path === 'function') this.use.push(path);
     else {
         var mwSteps = this.routes[path] = this.use.concat(mw);
         for (var i=this.use.length; i<mwSteps.length; i++) {
-            if (typeof mwSteps[i] !== 'function') throw new Error('middleware step must be a function');
-        }
+            if (typeof mwSteps[i] !== 'function') throw new Error('middleware step must be a function'); }
     }
 }
 NanoRouter.prototype.getRoute = function getRoute( path, method ) {
@@ -35,11 +35,8 @@ NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
 }
 NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
     var mwSteps = this.getRoute(req.url);
-    if (!mwSteps) return next(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
-    mw.runMwSteps(mwSteps, req, res, function(err) {
-        if (err) return next(err);
-        next();
-    })
+    if (mwSteps) mw.runMwSteps(mwSteps, req, res, next);
+    else next(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
 }
 
 function Router( ) {
