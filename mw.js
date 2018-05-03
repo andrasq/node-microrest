@@ -27,51 +27,43 @@ function HttpError( statusCode, debugMessage, details ) {
     return err;
 }
 
-function repeatUntil( fn, test, callback ) {
-    var depth = 0;
-    var callCount = 0, returnCount = 0;
-    if (!callback) { callback = test; test = false }
+// node-v8: 63m/s tracking callCount (70m/s tracking, but 40)
+function repeatUntil( loop, test, done ) {
+    var depth = 0, callCount = 0, returnCount = 0;
+    if (!done) { done = test; test = _testRepeatUntilDone }
 
-    _repeat();
+    callCount++;
+    _tryCall(loop, _return);
 
-    function _repeat() {
-        callCount++;
-        try { fn(_next) } catch(err) { _next(err) }
-    }
-
-    function _next(err, done) {
+    function _return(err, stop) {
         if (++returnCount > callCount) {
             // probably too late to return an error response, but at least warn
             console.error('%s -- microrest: mw callback already called', new Date().toISOString());
-            return tryCb(callback, new Error('microrest: mw callback already called'));
+            return done(new Error('mw callback already called'));
         }
-        //if (test(err, done)) return tryCb(callback, err);
-        if (test ? test(err, done) : (err || done)) return tryCb(callback, err);
-        if (depth++ < 10) _repeat(); else { depth = 0; process.nextTick(_repeat) }
-    }
-
-    function tryCb( cb, err ) {
-        try { cb(err) }
-        catch (e) { console.error('%s -- microrest: error thrown in mw callback:', new Date().toISOString(), e) }
+        if (test(err, stop)) { return done(err); }
+        else if (depth++ < 20) { callCount++; _tryCall(loop, _return); }
+        else { depth = 0; callCount++; process.nextTick(_tryCall, loop, _return); }
     }
 }
+function _testRepeatUntilDone(err, done) { return err || done; }
+function _testMwStepsDone(err, done) { return err || done || err === false; }
+function _tryCall(func, cb) { try { func(cb) } catch (err) { cb(err) } }
 
 // run the middleware stack until one returns next(err) or next(false)
 function runMwSteps( steps, req, res, callback ) {
     var ix = 0;
-    repeatUntil(runEachStep, test, callback);
+    repeatUntil(runEachStep, _testMwStepsDone, callback);
     function runEachStep(next) {
         if (ix >= steps.length) return next(null, 'done');
         steps[ix++](req, res, next);
     }
-    function test(err, done) { return (err || err === false || done || req._timeout) }
-// TODO: test for req._timeout to stop mw if a timeout use() step
 }
 
 // pass err to each error handler until one of them does not return error
 function runMwErrorSteps( steps, err, req, res, callback ) {
     var ix = 0;
-    repeatUntil(tryEachHandler, callback);
+    repeatUntil(tryEachHandler, _testRepeatUntilDone, callback);
     function tryEachHandler(next) {
         if (ix >= steps.length) return next(err, 'done');
         steps[ix++](err, req, res, function(declined) {
