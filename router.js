@@ -14,13 +14,14 @@ var mw = require('./mw');
 
 function NanoRouter( ) {
     this.use = new Array();
+    this.err = new Array();
     this.routes = {};
 }
-NanoRouter.prototype.setRoute = function setRoute( path, method, mw ) {
-    if (!mw) { mw = method; method = '_ANY_' }
-    if (typeof path === 'function') this.use.push(path);
+NanoRouter.prototype.setRoute = function setRoute( path, method, mwSteps ) {
+    if (!mwSteps) { mwSteps = method; method = '_ANY_' }
+    if (typeof path === 'function') path.length === 4 ? this.err.push(path) : this.use.push(path);
     else {
-        var mwSteps = this.routes[path] = this.use.concat(mw);
+        mwSteps = this.routes[path] = this.use.concat(mw.mwReadBody, mwSteps);
         for (var i=this.use.length; i<mwSteps.length; i++) {
             if (typeof mwSteps[i] !== 'function') throw new Error('middleware step must be a function'); }
     }

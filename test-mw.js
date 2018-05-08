@@ -8,7 +8,7 @@ module.exports = {
         'should run 1 times': function(t) {
             var retvals = ['done'];
             var spy = t.spy({}, 'fn', function(cb){ cb(null, retvals.shift()) });
-            mw.repeatUntil(spy, function(err) {
+            mw.repeatUntil(spy, null, function(err) {
                 t.equal(spy.callCount, 1);
                 t.done();
             })
@@ -17,7 +17,7 @@ module.exports = {
         'should run 5 times': function(t) {
             var retvals = [0, 0, 0, 0, 1];
             var spy = t.spy({}, 'fn', function(cb){ cb(null, retvals.shift()) });
-            mw.repeatUntil(spy, function(err) {
+            mw.repeatUntil(spy, null, function(err) {
                 t.equal(spy.callCount, 5);
                 t.done();
             })
@@ -26,7 +26,7 @@ module.exports = {
         'should run 2 times stopped by test': function(t) {
             var retvals = [0, 1];
             var spy = t.spy({}, 'fn', function(){ return retvals.shift() });
-            mw.repeatUntil(function(cb){ cb() }, spy, function(err) {
+            mw.repeatUntil(function(cb){ cb() }, null, spy, function(err) {
                 t.equal(spy.callCount, 2);
                 t.done();
             })
@@ -46,7 +46,7 @@ module.exports = {
                 }
             });
             t.expect(4);
-            mw.repeatUntil(fn, spy)
+            mw.repeatUntil(fn, null, spy)
         },
     },
 

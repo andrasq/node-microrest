@@ -6,6 +6,7 @@ var util = require('util');
 var http = require('http');
 
 var mw = module.exports = {
+    warn: warn,
     HttpError: HttpError,
     repeatUntil: repeatUntil,
     runMwSteps: runMwSteps,
@@ -27,51 +28,53 @@ function HttpError( statusCode, debugMessage, details ) {
     return err;
 }
 
-// node-v8: 63m/s tracking callCount (70m/s tracking, but 40)
-function repeatUntil( loop, test, done ) {
-    var depth = 0, callCount = 0, returnCount = 0;
-    if (!done) { done = test; test = _testRepeatUntilDone }
+// print a warning to stderr
+function warn() {
+    var argv = new Array();
+    for (var i=0; i<arguments.length; i++) argv.push(arguments[i]);
+    console.warn("%s -- microrest: %s", new Date().toISOString(), util.format.apply(util, argv));
+}
 
-    callCount++;
-    _tryCall(loop, _return);
+// node-v8: 63m/s tracking callCount (70m/s tracking, but 40)
+function repeatUntil( loop, arg, testStop, callback ) {
+    var depth = 0, callCount = 0, returnCount = 0;
+    if (!callback) { callback = testStop; testStop = _testRepeatUntilDone }
+
+    callCount++; _tryCall(loop, _return, arg);
 
     function _return(err, stop) {
         if (++returnCount > callCount) {
             // probably too late to return an error response, but at least warn
-            console.error('%s -- microrest: mw callback already called', new Date().toISOString());
-            return done(new Error('mw callback already called'));
+            mw.warn('mw callback already called');
+            return callback(new Error('mw callback already called'));
         }
-        if (test(err, stop)) { return done(err); }
-        else if (depth++ < 20) { callCount++; _tryCall(loop, _return); }
-        else { depth = 0; callCount++; process.nextTick(_tryCall, loop, _return); }
+        else if (testStop(err, stop)) { return callback(err); }
+        else if (depth++ < 20) { callCount++; _tryCall(loop, _return, arg); }
+        else { depth = 0; callCount++; process.nextTick(_tryCall, loop, _return, arg); }
     }
 }
 function _testRepeatUntilDone(err, done) { return err || done; }
+function _tryCall(func, cb, arg) { try { func(cb, arg) } catch (err) { cb(err) } }
+function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
 function _testMwStepsDone(err, done) { return err || done || err === false; }
-function _tryCall(func, cb) { try { func(cb) } catch (err) { cb(err) } }
 
 // run the middleware stack until one returns next(err) or next(false)
 function runMwSteps( steps, req, res, callback ) {
-    var ix = 0;
-    repeatUntil(runEachStep, _testMwStepsDone, callback);
-    function runEachStep(next) {
-        if (ix >= steps.length) return next(null, 'done');
-        steps[ix++](req, res, next);
-    }
+    var context = { ix: 0, steps: steps, req: req, res: res };
+    repeatUntil(_runOneMwStep, context, _testMwStepsDone, callback);
 }
 
-// pass err to each error handler until one of them does not return error
+// pass err to each error handler until one of them succeeds
+// A handler can decline the error (return it back) or can itself error out (return different error)
 function runMwErrorSteps( steps, err, req, res, callback ) {
     var ix = 0;
-    repeatUntil(tryEachHandler, _testRepeatUntilDone, callback);
-    function tryEachHandler(next) {
-        if (ix >= steps.length) return next(err, 'done');
-        steps[ix++](err, req, res, function(declined) {
-            if (declined && declined !== err) console.error('%s -- microrest: error mw error:', new Date().toISOString(), declined);
-            declined ? next() : next(null, 'done');
-        });
+    repeatUntil(tryEachHandler, null, _testRepeatUntilDone, callback);
+    function tryEachHandler(next, context) {
+        function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
+        (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined()) : next(null, 'done');
     }
 }
+function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 
 // simple query string parser
 // handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]
@@ -151,7 +154,7 @@ function writeResponse( res, statusCode, body, headers ) {
         else return mw.writeResponse(res, new mw.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body)));
     }
     var err2 = tryWriteResponse(res, statusCode, headers, body);
-    if (err2) { console.error('%s -- microrest: cannot send response:', new Date().toISOString(), err2); throw(err2) }
+    if (err2) { mw.warn('cannot send response:', err2); throw(err2) }
 
     function tryJsonEncode( body ) {
         try { return JSON.stringify(body) } catch (err) { return err } }

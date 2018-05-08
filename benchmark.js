@@ -198,7 +198,7 @@ else {
     var verifyResponse = true;
     var parallelCallCount = 100;
 
-    setTimeout(setupTests, 100);
+    setTimeout(setupTests, 200);
 
     function setupTests() {
         for (var name in frameworks) {
@@ -265,18 +265,22 @@ else {
     function runSuite() {
         console.log("AR: runSuite: req = %sB, res = %sB", request1.length, response1.length);
 
-        var cmdline = 'wrk -d2s -t2 -c4 http://localhost:%d/test1';
+        var cmdline = 'wrk -d2s -t2 -c8 http://localhost:%d/test1';
 
-        if (0) for (var name in frameworks) {
-            var cmd = util.format(cmdline, frameworks[name].port);
-            console.log("AR: %s %s", name, cmd);
-            if (name !== 'qrpc') console.log(String(child_process.execSync(cmd)));
+        if (0) {
+            console.log("");
+            for (var name in frameworks) {
+                var cmd = util.format(cmdline, frameworks[name].port);
+                console.log("# %s %s", name, cmd);
+                if (name !== 'qrpc') console.log(String(child_process.execSync(cmd)));
+            }
         }
         setTimeout(function() {
 
-            qtimeit.bench.timeGoal = .2;
+            qtimeit.bench.timeGoal = .4;
             qtimeit.bench.visualize = true;
             qtimeit.bench.showRunDetails = false;
+            qtimeit.bench.opsPerTest = 100;     // 100 http calls per test
 
             console.log("\nAR: bursts of %d parallel calls\n", parallelCallCount);
             if (1)
@@ -285,6 +289,7 @@ else {
             qtimeit.bench(parallelTests, function() {
 
             console.log("\nAR: sequential calls:\n");
+            qtimeit.bench.opsPerTest = 1;       // 1 http call in per test
             qtimeit.bench(serialTests, function() {
 
             console.log("AR: Done.");
