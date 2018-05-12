@@ -53,105 +53,6 @@ module.exports = {
             t.done();
         },
 
-        'without a router': {
-            'setRoute should throw': function(t) {
-                t.strictEqual(this.rest.getRoute('/path', 'method'), null);
-                this.rest.deleteRoute('/path', 'method');
-                try { this.rest.setRoute('/path', 'method', noop); }
-                catch (err) {
-                    /not supported/.test(err.message);
-                    t.done();
-                }
-            },
-        },
-
-        'with router': {
-            setUp: function(done) {
-                this.rest.router = new NonRouter();
-                done();
-            },
-
-            'should delegate router methods setRoute, getRoute, deleteRoute': function(t) {
-                var spy = t.spyOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('use', [noop]);
-                t.deepEqual(spy.args[0], ['use', '_ANY_', [noop]]);
-
-                var spy = t.spyOnce(this.rest.router, 'getRoute');
-                this.rest.getRoute('/path', 'method');
-                t.deepEqual(spy.args[0], ['/path', 'method']);
-
-                var spy = t.spyOnce(this.rest.router, 'deleteRoute');
-                this.rest.deleteRoute('/path', 'method');
-                t.deepEqual(spy.args[0], ['/path', 'method']);
-
-                t.done();
-            },
-
-            'should add use step': function(t) {
-                var spy = t.stubOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('use', noop);
-                t.ok(spy.called);
-                t.deepEqual(spy.args[0], ['use', '_ANY_', [noop]]);
-                t.done();
-            },
-
-            'use step must be a function': function(t) {
-                var rest = this.rest;
-                t.throws(function(){ rest.setRoute('use', 1) }, /not a function/);
-                t.done();
-            },
-
-            'should add use route': function(t) {
-                var spy;
-
-                spy = t.stubOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('/some/path', noop);
-                t.deepEqual(spy.args[0], ['/some/path', '_ANY_', [noop]]);
-
-                spy = t.stubOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('/some/path', noop, noop);
-                t.deepEqual(spy.args[0], ['/some/path', '_ANY_', [noop, noop]]);
-
-                spy = t.stubOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('/some/path', [noop, noop]);
-                t.deepEqual(spy.args[0], ['/some/path', '_ANY_', [noop, noop]]);
-
-                t.done();
-            },
-
-            'should add route step': function(t) {
-                var spy = t.spyOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('/path', 'GET', noop);
-                require('assert').deepEqual(spy.args[0], ['/path', 'GET', [noop]]);
-                t.done();
-            },
-
-            'should add route step array': function(t) {
-                var spy;
-
-                spy = t.stubOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('/path', 'GET', noop);
-                t.deepEqual(spy.args[0], ['/path', 'GET', [noop]]);
-
-                spy = t.stubOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('/path', 'GET', noop, noop, noop);
-                t.deepEqual(spy.args[0], ['/path', 'GET', [noop, noop, noop]]);
-
-                spy = t.stubOnce(this.rest.router, 'setRoute');
-                this.rest.setRoute('/path', 'GET', [noop, noop]);
-                t.deepEqual(spy.args[0], ['/path', 'GET', [noop, noop]]);
-
-                t.done();
-            },
-
-            'route steps must be functions': function(t) {
-                var rest = this.rest;
-                t.throws(function(){ rest.setRoute('/path', 'GET', 1) }, /step .* not a function/);
-                t.throws(function(){ rest.setRoute('/path', 'GET', [noop, 1, noop]) }, /step .* not a function/);
-                t.done();
-            },
-        },
-
         'onRequest': {
             'should catch setEncoding error': function(t) {
                 var req = mockReq();
@@ -321,12 +222,12 @@ module.exports = {
         'handler.use should add use or err mw step': function(t) {
             var handler = rest.createHandler({ router: { setRoute: noop } });
 
-            var mw, spy = t.spyOnce(handler.rest, 'setRoute');
+            var mw, spy = t.spyOnce(handler.rest.router, 'setRoute');
             handler.use(mw = function(req, res, next) { });
             t.ok(spy.called);
             t.deepEqual(spy.args[0], ['use', mw]);
 
-            var mw, spy = t.spyOnce(handler.rest, 'setRoute');
+            var mw, spy = t.spyOnce(handler.rest.router, 'setRoute');
             handler.use(mw = function(err, req, res, next) { });
             t.ok(spy.called);
             t.deepEqual(spy.args[0], ['err', mw]);
@@ -354,7 +255,7 @@ module.exports = {
             var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ];
             for (var i=0; i<httpMethods.length; i++) {
                 var method = httpMethods[i];
-                var spy = t.stubOnce(handler.rest, 'setRoute');
+                var spy = t.stubOnce(handler.rest.router, 'setRoute');
                 handler[method]('/path', noop);
                 t.ok(spy.called);
             }

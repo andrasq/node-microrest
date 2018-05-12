@@ -162,23 +162,6 @@ NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
 }
 
 
-// TODO: routing is not needed on rest objects... inject the router into the app instead
-
-Rest.prototype.getRoute = function getRoute( path, method ) {
-    return this.router && this.router.getRoute(path, method) || null;
-}
-Rest.prototype.deleteRoute = function deleteRoute( path, method ) {
-    return this.router && this.router.deleteRoute(path, method) || null;
-}
-Rest.prototype.setRoute = function setRoute( path, method, mw /* VARARGS */ ) {
-    mw = sliceMwArgs(new Array(), arguments, typeof method === 'string' ? 2 : 1);
-    method = typeof method === 'string' ? method : '_ANY_';
-    for (var i=0; i<mw.length; i++) if (typeof mw[i] !== 'function') throw new Error('middleware step [' + i + '] is not a function');
-    if (!this.router) throw new this.HttpError('mw routing not supported');
-    (path[0] === '/') ? this.router.setRoute(path, method, mw) : this.router.setRoute(path, '_ANY_', mw);
-    return this;
-}
-
 Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     var self = this;
 

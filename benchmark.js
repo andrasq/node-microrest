@@ -11,6 +11,7 @@ var qtimeit = require('qtimeit');
 
 var mw = require('./mw');
 var rest = require('./rest');
+var Router = require('./router');
 
 var basePort = 1337;
 var frameworks = {
@@ -93,10 +94,10 @@ if (cluster.isMaster) {
     if (frameworks.rest_mw) {
         // 44.1k/s 85.1us
         servers.rest_mw = frameworks.rest_mw.pkg.createServer({ port: frameworks.rest_mw.port, /*router: new rest.NanoRouter()*/ });
-        servers.rest_mw._rest.router = new (require('./router'))();
+        servers.rest_mw._rest.router = new Router();
         //servers.rest_mw._rest.setRoute('/test1', function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });
         // 43.3k/s
-        servers.rest_mw._rest.setRoute('/test1', function test1(req, res, next) { res.end(response1); });
+        servers.rest_mw._rest.router.setRoute('/test1', function test1(req, res, next) { res.end(response1); });
         // 44.1k/s
         function noop(){}
     }
