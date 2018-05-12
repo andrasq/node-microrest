@@ -64,8 +64,8 @@ function createHandler( options ) {
     var rest = options.rest || new Rest(options);
     var handler = rest.onRequest;
     handler.rest = rest;
-    handler.use = useMw;
 
+    handler.use = useMw;
     function useRouter() { return rest.router ? rest.router : rest.router = new module.exports.NanoRouter() }
     function useMw(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
 
@@ -108,9 +108,6 @@ function Rest( options ) {
     var self = this;
 
     this.encoding = options.encoding !== undefined ? options.encoding : 'utf8';
-    this.bodySizeLimit = options.bodySizeLimit || Infinity;
-
-    this.mw = options.mw || {};
     this.router = options.router;
 
     this.processRequest = options.processRequest;
@@ -177,17 +174,16 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
         })
     }
     function returnError(err) {
-        try { if (err) self.onError(err, req, res, function(e3){ }); if (next) next() }
-        catch (e2) { next ? next(err || e2) : console.error('%s -- microrest: onError error:', new Date().toISOString(), e2) }
+        try { if (err) self.onError(err, req, res, function(e3){ }); if (next) process.nextTick(next) }
+        catch (e2) { next ? process.nextTick(next, e2) : console.error('%s -- microrest: onError error:', new Date().toISOString(), e2) }
     }
 }
 
 Rest.prototype.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
-    var self = this, body = '', chunks = null, bodySize = 0;
+    var body = '', chunks = null, bodySize = 0;
 
     req.on('data', function(chunk) {
-        if ((bodySize += chunk.length) >= self.bodySizeLimit) return;
         if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
         else (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk));
     })
@@ -195,7 +191,6 @@ Rest.prototype.readBody = function readBody( req, res, next ) {
         next(err);
     })
     req.on('end', function() {
-        if (bodySize > self.bodySizeLimit) return next((new rest.HttpError(400, 'max body size exceeded')), 1);
         body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : '');
         if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
         req.body = body;

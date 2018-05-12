@@ -42,8 +42,6 @@ module.exports = {
         'should expose optional properties': function(t) {
             var options = {
                 encoding: 'base64',
-                bodySizeLimit: 123456,
-                mw: {},
                 router: {},
                 processRequest: function(){},
                 onError: function(){},
@@ -123,17 +121,41 @@ module.exports = {
                     }, 3);
                 },
 
-                'should catch processRequest error': function(t) {
+                'should pass processRequest exception to onError': function(t) {
+                    var spy = t.spy(this.rest, 'onError');
+                    t.stub(this.rest, 'processRequest').throws(new Error('mock processRequest error'));
+                    t.stub(this.rest, 'readBody').yields(null, '');
+                    var spy = t.spy(this.rest, 'onError');
+                    this.rest.onRequest(mockReq(), mockRes(), function(err) {
+                        t.ok(spy.called);
+                        t.contains(spy.args[0][0].message, 'mock processRequest error');
+                        t.done();
+                    })
+                },
+
+                'should pass processRequest error to onError': function(t) {
                     var spy = t.spy(this.rest, 'onError');
                     t.stub(this.rest, 'processRequest').yields(new Error('mock processRequest error'));
-                    t.stubOnce(this.rest, 'readBody').yields(null, '');
-                    this.rest.onRequest(mockReq(), mockRes(), noop);
-                    setTimeout(function() {
+                    t.stub(this.rest, 'readBody').yields(null, '');
+                    var spy = t.spy(this.rest, 'onError');
+                    this.rest.onRequest(mockReq(), mockRes(), function(err) {
                         t.ok(spy.called);
-                        t.equal(spy.args[0][0].message, 'mock processRequest error');
+                        t.contains(spy.args[0][0].message, 'mock processRequest error');
                         t.done();
-                    }, 3);
+                    })
                 },
+
+                'should return onError exception': function(t) {
+                    t.stub(this.rest, 'processRequest').throws('invoke onError');
+                    t.stub(this.rest, 'onError').throws('mock onError error');
+                    t.stubOnce(this.rest, 'readBody').yields(null, '');
+                    this.rest.onRequest(mockReq(), mockRes(), function(err) {
+                        t.ok(err);
+                        t.equal(err, 'mock onError error');
+                        t.done();
+                    })
+                },
+
             },
 
             'with router': {
@@ -278,6 +300,23 @@ module.exports = {
             var router2 = handler.rest.router;
             t.equal(router1, router2);
             t.ok(router1 instanceof rest.NanoRouter);
+            t.done();
+        },
+
+        'get, post etc should set an array of routes': function(t) {
+            // all get,post,put etc methods are handled with identical code
+            var handler = rest.createHandler({ router: {} });
+            var spy = t.stub(handler.rest.router, 'setRoute').configure('saveLimit', 10);
+            handler.get('/path', noop);
+            handler.get('/path', [noop]);
+            handler.get('/path', noop, noop);
+            handler.get('/path', [noop, noop]);
+            handler.get('/path', [noop, noop], noop);
+            t.deepEqual(spy.args[0][2], [noop]);
+            t.deepEqual(spy.args[1][2], [noop]);
+            t.deepEqual(spy.args[2][2], [noop, noop]);
+            t.deepEqual(spy.args[3][2], [noop, noop]);
+            t.deepEqual(spy.args[4][2], [[noop, noop], noop]);
             t.done();
         },
 
@@ -575,17 +614,6 @@ module.exports = {
                     this.req.emit('end');
                 },
 
-                'should return error if bodySizeLimit is exceeded': function(t) {
-                    this.rest.bodySizeLimit = 2;
-                    this.rest.readBody(this.req, {}, function(err) {
-                        t.ok(err);
-                        t.contains(err.debug, 'size exceeded');
-                        t.done();
-                    })
-                    this.req.emit('data', 'chunk1');
-                    this.req.emit('end');
-                },
-
                 'should return http error': function(t) {
                     var req = this.req;
                     this.rest.readBody(req, {}, function(err) {
@@ -595,6 +623,48 @@ module.exports = {
                     })
                     setTimeout(function() { req.emit('error', 'mock http error'); }, 2);
                 },
+            },
+        },
+
+        '_tryWriteResponse': {
+            setUp: function(done) {
+                this.rest = new Rest();
+                this.res = mockRes();
+                done();
+            },
+
+            'should set statusCode, headers, and write string body': function(t) {
+                var spy = t.spy(this.res, 'end');
+                this.rest._tryWriteResponse(this.res, 123, { 'my-header-1': 1234, 'header-two': 2345 }, "response");
+                t.equal(this.res.statusCode, 123);
+                t.contains(this.res._headers, { 'my-header-1': 1234, 'header-two': 2345 });
+                t.ok(spy.called);
+                t.equal(spy.args[0][0], 'response');
+                t.done();
+            },
+
+            'should default to statusCode 200': function(t) {
+                this.rest._tryWriteResponse(this.res);
+                t.equal(this.res.statusCode, 200);
+                t.done();
+            },
+
+            'should write Buffer body': function(t) {
+                var spy = t.spy(this.res, 'end');
+                this.rest._tryWriteResponse(this.res, null, null, new Buffer('response'));
+                t.ok(spy.called);
+                t.equal(spy.args[0][0].toString(), 'response');
+                t.done();
+            },
+
+            'should json encode object body': function(t) {
+                var spy = t.spy(this.res, 'end');
+                var err = this.rest._tryWriteResponse(this.res, null, null, { json: true });
+                t.equal(this.res.statusCode, 200);
+                t.deepEqual(this.res._headers, {});
+                t.ok(spy.called);
+                t.equal(spy.args[0][0], '{"json":true}');
+                t.done();
             },
         },
     },
@@ -684,23 +754,26 @@ module.exports = {
 
         'runRoute should run use and mw steps': function(t) {
             var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields(null, '');
             var calls = [];
             router.setRoute(function(req, res, next) { calls.push('use1'); next() });
             router.setRoute(function(req, res, next) { calls.push('use2'); next() });
             router.setRoute('/test/path', function(req, res, next) { calls.push('path1'); next() });
             var app = { readBody: function(req, res, next) { req.body = "mock body"; next() } };
-            var req = { url: '/test/path', method: 'GET' };
+            var req = mockReq({ url: '/test/path', method: 'GET' });
             var res = {};
             router.runRoute(app, req, res, function(err) {
                 t.ok(!err)
                 t.deepEqual(calls, ['use2', 'path1']);
                 t.done();
             });
+            req.emit('end');
         },
 
         'runRoute should return error on unrouted path': function(t) {
             var router = new rest.NanoRouter();
-            router.runRoute({}, { url: '/test/url' }, {}, function(err) {
+            t.stub(router.routes, 'readBody').yields(null, '');
+            router.runRoute({}, { url: '/test/url' }, mockRes(), function(err) {
                 t.ok(err);
                 t.contains(err.message, 'not routed');
                 t.done();
@@ -709,6 +782,7 @@ module.exports = {
 
         'runRoute should return mw error': function(t) {
             var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields(null, '');
             var called = false;
             router.setRoute('/path1', function(req, res, next) { next('mw error') });
             router.runRoute({}, { url: '/path1' }, {}, function(err) {
@@ -721,6 +795,7 @@ module.exports = {
 
         'runRoute should catch and return mw exception': function(t) {
             var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('/path1', function(req, res, next) { throw 'mw error' });
             router.runRoute({}, { url: '/path1' }, {}, function(err) {
                 t.ok(err);
@@ -728,18 +803,64 @@ module.exports = {
                 t.done();
             })
         },
+
+        'runRoute should return mw error': function(t) {
+            var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields(null, '');
+            router.setRoute('/path1', noopStep);
+            router.setRoute('/path1', function(req, res, next) { next('mock use error') });
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.equal(err, 'mock use error');
+                t.done();
+            })
+        },
+
+        'runRoute should return readBody error': function(t) {
+            var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields(null, '');
+            router.routes.readBody = function(req, res, next) { next('mock readBody error') };
+            router.setRoute('/path1', function(req, res, next) { next('mock use error') });
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.equal(err, 'mock readBody error');
+                t.done();
+            })
+        },
+
+        'runRoute should return mw error': function(t) {
+            var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields(null, '');
+            router.setRoute('/path1', function(req, res, next) { next('mock mw error') });
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.equal(err, 'mock mw error');
+                t.done();
+            })
+        },
+
+        'runRoute should return finally error': function(t) {
+            var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields(null, '');
+            router.setRoute('/path1', noopStep);
+            router.setRoute('use', function(req, res, next) { next('mock use error') });
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.equal(err, 'mock use error');
+                t.done();
+            })
+        },
     },
 }
 
+function noopStep(req, res, next) { next() }
 function noop(){};
 function noop2(){};
 function noop3(){};
 
-function mockReq() {
+function mockReq( opts ) {
+    opts = opts || {};
     var req = new events.EventEmitter();
     req.setEncoding = noop;
     req.end = noop;
     req.read = noop;
+    for (var k in opts) req[k] = opts[k];
     return req;
 }
 
