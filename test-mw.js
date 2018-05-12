@@ -4,6 +4,32 @@ var mw = require('./mw');
 
 module.exports = {
 
+    'HttpError': {
+        'should encode statusCode, message, debug': function(t) {
+            var err = new mw.HttpError(404, 'my error message');
+            t.equal(err.statusCode, 404);
+            t.equal(err.message, '404 Not Found');
+            t.equal(err.debug, 'my error message');
+
+            // without params
+            var err = new mw.HttpError();
+            t.equal(err.statusCode, 500);
+            t.equal(err.message, '500 Internal Error');
+
+            // with just a status code
+            var err = new mw.HttpError(401);
+            t.equal(err.statusCode, 401);
+            t.equal(err.message, '401 Unauthorized');
+
+            // with a custom status code
+            var err = new mw.HttpError(999);
+            t.equal(err.statusCode, 999);
+            t.equal(err.message, '999 Internal Error');
+
+            t.done();
+        },
+    },
+
     'repeatUntil': {
         'should run 1 times': function(t) {
             var retvals = ['done'];
