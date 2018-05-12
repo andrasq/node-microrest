@@ -10,7 +10,7 @@
   "readme": "see README.md in the root directory",
 
   "scripts": {
-    "xpretest": "npm install qnit",
+    "pretest": "which qnit || npm install qnit",
     "test": "qnit test-*.js || false",
     "coverage": "nyc -r text -r lcov npm test",
     "clean": "rm -rf .nyc_output/ coverage/"

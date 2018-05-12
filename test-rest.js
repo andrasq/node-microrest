@@ -261,6 +261,69 @@ module.exports = {
             }
             t.done();
         },
+
+        'use should create a NanoRouter': function(t) {
+            var handler = rest.createHandler();
+            t.ok(!handler.rest.router);
+            handler.use(noop);
+            t.ok(handler.rest.router instanceof rest.NanoRouter);
+            t.done();
+        },
+
+        'get, post should create a NanoRouter': function(t) {
+            var handler = rest.createHandler();
+            handler.get('/path1', noop);
+            var router1 = handler.rest.router;
+            handler.post('/path2', noop);
+            var router2 = handler.rest.router;
+            t.equal(router1, router2);
+            t.ok(router1 instanceof rest.NanoRouter);
+            t.done();
+        },
+
+        'use should accept a step name': function(t) {
+            var handler = rest.createHandler();
+            handler.use('err', noop);
+            handler.use('other', noop);
+            t.deepEqual(handler.rest.router.routes.other, noop);
+            t.done();
+        },
+
+        'listen should call createServer without options or callback': function(t) {
+            var handler = rest.createHandler();
+            var spy = t.stubOnce(rest, 'createServer');
+            handler.listen();
+            t.ok(spy.called);
+            t.contains(spy.args[0][0], { port: 0 });
+            t.equals(spy.args[0][1], undefined);
+            t.done();
+        },
+
+        'listen should call createServer with just callback': function(t) {
+            var handler = rest.createHandler();
+            var spy = t.stubOnce(rest, 'createServer').yields(null);
+            handler.listen(noop);
+            t.contains(spy.args[0][0], { port: 0, rest: handler.rest });
+            t.equal(spy.args[0][1], noop);
+            t.done();
+        },
+
+        'listen should accept options': function(t) {
+            var handler = rest.createHandler();
+            var spy = t.stubOnce(rest, 'createServer').yields(null);
+            handler.listen({ tag: 12345 }, noop);
+            t.contains(spy.args[0][0], { tag: 12345, rest: handler.rest });
+            t.equal(spy.args[0][1], noop);
+            t.done();
+        },
+
+        'listen should accept a port': function(t) {
+            var handler = rest.createHandler();
+            var spy = t.stubOnce(rest, 'createServer').yields(null);
+            handler.listen(1234, noop);
+            t.contains(spy.args[0][0], { port: 1234, rest: handler.rest });
+            t.done();
+        },
     },
 
     'createServer': {

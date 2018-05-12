@@ -66,19 +66,20 @@ function createHandler( options ) {
     handler.rest = rest;
     handler.use = useMw;
 
-    function useRouter() { return rest.router ? rest.router : rest.router = rest.router || new module.exports.NanoRouter() }
+    function useRouter() { return rest.router ? rest.router : rest.router = new module.exports.NanoRouter() }
     function useMw(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
 
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     httpMethods.forEach(function(method) {
-        var fn = function( path, mw ) { return useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
+        var fn = function( path, mw ) { useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
         handler[method] = setFunctionName(fn, method);
     })
     handler.del = handler.delete;
     handler.listen = function(options, callback) {
+        if (typeof options === 'function') { callback = options; options = 0; }
         options = (options > 0 || options === 0) ? { port: options } : options ? options : { port: 0 };
         options.rest = handler.rest;
-        return rest.createServer(options, callback)
+        return module.exports.createServer(options, callback)
     };
 
     return handler;
@@ -118,7 +119,7 @@ function Rest( options ) {
         if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
         next(err2);
     };
-    this.onFinally = options.onFinally || function(req, res, next) { next() };
+    // TODO: this.onFinally = options.onFinally || function(req, res, next) { next() };
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
     this.onRequest = function(req, res, next) { self._onRequest(req, res, next); }
@@ -150,7 +151,7 @@ NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
     var self = this, err1, err2, err3, err4;
     _tryStep(self.routes.use, req, res, function(err) {
         if (err1 = err) return runError();
-    _tryStep(self.routes.readBody, req, res, function(err2) {
+    _tryStep(self.routes.readBody, req, res, function(err) {
         if (err2 = err) return runError();
     self.routes[req.url]
         ? _tryStep(self.routes[req.url], req, res, runError)
