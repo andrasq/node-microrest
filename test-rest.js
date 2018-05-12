@@ -537,10 +537,31 @@ module.exports = {
     },
 
     'NanoRouter': {
-        'setRoute should accept functions': function(t) {
+        'setRoute should accept function': function(t) {
             var router = new rest.NanoRouter();
             router.setRoute(noop);
             router.setRoute('/path1', noop);
+            t.done();
+        },
+
+        'setRoute should accept path and function': function(t) {
+            var router = new rest.NanoRouter();
+            router.setRoute('/path1', noop);
+            t.deepEqual(router.getRoute('/path1'), noop);
+            t.done();
+        },
+
+        'setRoute should accept path and array of 1 function': function(t) {
+            var router = new rest.NanoRouter();
+            router.setRoute('/path1', [noop]);
+            t.deepEqual(router.getRoute('/path1'), noop);
+            t.done();
+        },
+
+        'setRoute should accept path, method and function': function(t) {
+            var router = new rest.NanoRouter();
+            router.setRoute('/path1', 'FOO', noop);
+            t.deepEqual(router.getRoute('/path1', 'FOO'), noop);
             t.done();
         },
 
@@ -576,7 +597,25 @@ module.exports = {
             var router = new rest.NanoRouter();
             t.throws(function(){ router.setRoute(123) }, /must be a function/);
             t.throws(function(){ router.setRoute('/path', 123) }, /must be a function/);
+            t.throws(function(){ router.setRoute('/path', [123]) }, /must be a function/);
             t.throws(function(){ router.setRoute('/path', {}) }, /must be a function/);
+            t.done();
+        },
+
+        'setRoute should reject array of 2 functions': function(t) {
+            var router = new rest.NanoRouter();
+            t.throws(function(){ router.setRoute('/path', [noop, noop]) }, /not supported/);
+            t.done();
+        },
+
+        'setRoute should set use and err steps': function(t) {
+            var router = new rest.NanoRouter();
+            var fn1 = function(req, res, next) {};
+            router.setRoute(fn1);
+            t.equal(router.routes.use, fn1);
+            var fn2 = function(err, req, res, next) {};
+            router.setRoute(fn2);
+            t.equal(router.routes.err, fn2);
             t.done();
         },
 
