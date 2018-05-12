@@ -14,6 +14,8 @@ var https = require('https');
 
 var rest = module.exports = createHandler;
 module.exports.Rest = Rest;
+Rest.HttpError = HttpError;
+Rest.NanoRouter = NanoRouter;
 module.exports.HttpError = HttpError;
 module.exports.NanoRouter = NanoRouter;
 module.exports.createServer = createServer;
@@ -62,16 +64,15 @@ function createHandler( options ) {
     var rest = options.rest || new Rest(options);
     var handler = rest.onRequest;
     handler.rest = rest;
+    handler.use = useMw;
 
-    handler.use = function use(mw) {
-        typeof mw === 'string' ? rest.setRoute(arguments[0], arguments[1]) : rest.setRoute(mw.length === 4 ? 'err' : 'use', mw);
-    }
+    function useRouter() { return rest.router ? rest.router : rest.router = rest.router || new module.exports.NanoRouter() }
+    function useMw(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
 
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     httpMethods.forEach(function(method) {
-        var fn = function( path, mw ) { return rest.setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
-        handler[method] = Object.defineProperty(fn, 'name', { writable: true });
-        fn.name = method;
+        var fn = function( path, mw ) { return useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
+        handler[method] = setFunctionName(fn, method);
     })
     handler.del = handler.delete;
     handler.listen = function(options, callback) {
@@ -82,6 +83,7 @@ function createHandler( options ) {
 
     return handler;
 }
+function setFunctionName( fn, name ) { fn = Object.defineProperty(fn, 'name', { writable: true }); fn.name = name; return fn; }
 
 // ----------------------------------------------------------------
 
@@ -129,6 +131,7 @@ function NanoRouter( ) {
 }
 NanoRouter.prototype.setRoute = function setRoute( path, method, mwStep ) {
     if (!mwStep) { mwStep = method; method = '_ANY_' }
+    if (Array.isArray(mwStep)) mwStep = mwStep[0];
     if (typeof path === 'function') path.length === 4 ? this.routes.err = path : this.routes.use = path;
     else if (typeof mwStep !== 'function') throw new Error('mw step must be a function');
     this.routes[path] = mwStep;

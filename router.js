@@ -7,53 +7,8 @@
 'use strict';
 
 module.exports = Router;
-module.exports.NanoRouter = NanoRouter;
 
 var mw = require('./mw');
-
-
-function noopStep( req, res, next ) { next() }
-function NanoRouter( ) {
-// TODO: call NanoRouter NonRouter, move back into rest, and only allow one step per route!
-    this.use = new Array();
-    this.err = new Array();
-    this.post = noopStep;
-    this.routes = {};
-}
-NanoRouter.prototype.setRoute = function setRoute( path, method, mwSteps ) {
-    if (!mwSteps) { mwSteps = method; method = '_ANY_' }
-    if (typeof path === 'function') path.length === 4 ? this.err.push(path) : this.use.push(path);
-    else {
-        mwSteps = this.routes[path] = this.use.concat(mw.mwReadBody, mwSteps);
-        for (var i=this.use.length; i<mwSteps.length; i++) {
-            if (typeof mwSteps[i] !== 'function') throw new Error('middleware step must be a function'); }
-    }
-}
-NanoRouter.prototype.getRoute = function getRoute( path, method ) {
-    var mwSteps = this.routes[path];
-    while (!mwSteps && path.length > 1) mwSteps = this.routes[path = path.slice(path, path.lastIndexOf('/')) || '/'];
-    return mwSteps;
-}
-NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
-    delete this.routes[path];
-}
-function _tryStep( fn, req, res, next ) { try { fn(req, res, next) } catch (err) { next(err) } }
-NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
-    var mwSteps = this.getRoute(req.url);
-    if (mwSteps) mw.runMwSteps(mwSteps, req, res, next);
-    else next(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
-return;
-    // TODO: run route where each use/err/post is a single function, never an array
-    var self = this;
-    _tryStep(self.use, req, res, function(err) {
-        if (err) return runError(err, req, res);
-        self.routes[req.url]
-            ? _tryStep(self.routes[req.url], req, res, runError)
-            : runError(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
-    })
-    function runError(err, req, res) { err ? _tryStep(self.err, err, req, res, runFinally) : funFinally(req, res) }
-    function runFinally(req, res) { _tryStep(self.post, req, res, next) }
-}
 
 function Router( ) {
     this.NotRoutedHttpCode = 404;
@@ -73,7 +28,7 @@ function Router( ) {
 
 Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel ) {
     if (typeof method !== 'string' || sentinel) {
-        if (mwSteps) throw new Error('expected exactly one mw step or array');
+        if (mwSteps) throw new Error('setRoute takes a single mw step or an array');
         mwSteps = method;
         method = '_ANY_';
     }
@@ -109,7 +64,8 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
     var mw;
 
     if (!path) return null;                             // path is required
-    if (path[0] !== '/') return this.steps[path];       // pre-, post-, use- and err-middleware
+    if (this.steps[path]) return this.steps[path];
+    if (this.maproutes[path] && (mw = this.maproutes[path][method] || this.maproutes[path]['_ANY_'])) return mw;
 
     // TODO: maybe match on path prefix, not the whole path (to let mw handle url param extraction)
 
@@ -144,10 +100,11 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         },
         function doRoute(req, res, next) {
             route = self.getRoute(req.url, req.method);
-            if (!route) return next(rest.HttpError(rest.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
+            if (!route) return next(rest.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
             if (route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
             next();
         },
+        // TODO: do not provide the body, require that some use() step reads it!
         function readBodyBeforeMw(req, res, next) {
             // TODO: readBody should live in mw, but also needed by rest.js
             (req.body !== undefined) ? next() : rest.readBody(req, res, function(err, body) { next(err) });
@@ -175,7 +132,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
                 if (err3 === err2) console.error('microrest-router: unhandled post mw error', err3);
                 if (err1 && err2) console.error('microrest-router: double-fault: unhandled error from post mw', err2);
                 if (err3 !== err1 && err3 !== err2) console.error('microrest-router: double-fault: unhandled error in mw error handler', err3);
-                if (callback) return callback(err1 || err2 || err3 || null);
+                if (callback) process.nextTick(callback, err1 || err2 || err3 || null);
 
                 // TODO: uncaughtException handling -- same as errors?
             })

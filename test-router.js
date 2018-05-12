@@ -5,16 +5,16 @@ var Router = require('./router');
 module.exports = {
     setUp: function(done) {
         this.router = new Router();
-        this.fn1 = function(req, res, next) { next() };
-        this.fn2 = function(req, res, next) { next() };
-        this.fne = function(err, req, res, next) { next() };
+        this.fn1 = function fn1(req, res, next) { next() };
+        this.fn2 = function fn2(req, res, next) { next() };
+        this.fne = function fne(err, req, res, next) { next() };
         done();
     },
 
     'getRoute': {
         'should return direct-mapped route': function(t) {
             this.router.setRoute('/test/path', this.fn1);
-            t.deepEqual(this.router.getRoute('/test/path'), { mw: [this.fn1] });
+            t.deepEqual(this.router.getRoute('/test/path'), [this.fn1]);
             t.done();
         },
 
@@ -49,14 +49,17 @@ module.exports = {
             'should reject invalid mount path': function(t) {
                 try { this.router.setRoute('badwhere', [this.fn1]). t.fail() }
                 catch (e) { t.contains(e.message, 'invalid mw mount path'); }
+                // should accept any route path:
+                //this.router.setRoute('anywhere', []);
+                //t.deepEqual(this.router.getRoute('anywhere'), []);
                 t.done();
             },
 
             'should reject multiple mw steps': function(t) {
                 try { this.router.setRoute('/path', 'GET', this.fn1, this.fn2); t.fail() }
-                catch (e) { t.contains(e.message, 'expected exactly one'); }
+                catch (e) { t.contains(e.message, 'takes a single'); }
                 try { this.router.setRoute('/path', this.fn1, this.fn2); t.fail() }
-                catch (e) { t.contains(e.message, 'expected exactly one'); }
+                catch (e) { t.contains(e.message, 'takes a single'); }
                 t.done();
             },
 
@@ -128,9 +131,9 @@ module.exports = {
             this.router.setRoute('/test/one', 'GET', [this.fn1]);
             this.router.setRoute('/test/two', 'GET', [this.fn2]);
             var route = this.router.getRoute('/test/one', 'GET');
-            t.equal(route.mw[0], this.fn1);
+            t.equal(route[0], this.fn1);
             var route = this.router.getRoute('/test/two', 'GET');
-            t.equal(route.mw[0], this.fn2);
+            t.equal(route[0], this.fn2);
             var route = this.router.getRoute('/test/three', 'GET');
             t.equal(route, null);
             t.done();
@@ -231,128 +234,6 @@ t.skip();
 
         'mw should stop on false': function(t) {
 t.skip();
-        },
-    },
-
-    'NanoRouter': {
-        'setRoute should accept functions': function(t) {
-            var router = new Router.NanoRouter();
-            router.setRoute(noop);
-            router.setRoute('/path1', noop);
-            t.done();
-        },
-
-        'setRoute should accept arrays of functions': function(t) {
-            var router = new Router.NanoRouter();
-            router.setRoute('/path1', []);
-            router.setRoute('/path2', [noop]);
-            router.setRoute('/path3', [noop, noop, noop]);
-            t.done();
-        },
-
-        'getRoute should return the mw steps or null': function(t) {
-            var router = new Router.NanoRouter();
-            router.setRoute('/path1', []);
-            router.setRoute('/path2', noop);
-            router.setRoute('/path3', [noop]);
-            t.deepEqual(router.getRoute('/path0'), null);
-            t.deepEqual(router.getRoute('/path1'), []);
-            t.deepEqual(router.getRoute('/path2'), [noop]);
-            t.deepEqual(router.getRoute('/path3'), [noop]);
-            t.done();
-        },
-
-        'getRoute should match a routed prefix': function(t) {
-            var router = new Router.NanoRouter();
-            router.setRoute('/', [noop]);
-            router.setRoute('/path', [noop, noop]);
-            router.setRoute('/path/name', [noop, noop, noop]);
-            t.deepEqual(router.getRoute('/path/name'), [noop, noop, noop]);
-            t.deepEqual(router.getRoute('/path/othername'), [noop, noop]);
-            t.deepEqual(router.getRoute('/otherpath'), [noop]);
-            t.deepEqual(router.getRoute('withoutslash'), null);
-            t.done();
-        },
-
-        'deleteRoute should remove route': function(t) {
-            var router = new Router.NanoRouter();
-            router.setRoute('/path1', noop);
-            router.deleteRoute('/path1');
-            t.equal(router.getRoute('path1'), null);
-            t.done();
-        },
-
-        'setRoute should reject non-function mw': function(t) {
-            var router = new Router.NanoRouter();
-            t.throws(function(){ router.setRoute(123) }, /must be a function/);
-            t.throws(function(){ router.setRoute('/path', 123) }, /must be a function/);
-            t.throws(function(){ router.setRoute('/path', {}) }, /must be a function/);
-            t.done();
-        },
-
-        'runRoute should run use and mw steps': function(t) {
-            var router = new Router.NanoRouter();
-            var calls = [];
-            router.setRoute(function(req, res, next) { calls.push('use1'); next() });
-            router.setRoute(function(req, res, next) { calls.push('use2'); next() });
-            router.setRoute('/test/path', [function(req, res, next) { calls.push('path1'); next() }]);
-            var rest = { readBody: function(req, res, next) { req.body = "mock body"; next() } };
-            var req = { url: '/test/path', method: 'GET' };
-            var res = {};
-            router.runRoute(rest, req, res, function(err) {
-                t.ok(!err)
-                t.deepEqual(calls, ['use1', 'use2', 'path1',]);
-                t.done();
-            })
-        },
-
-        'runRoute should stop on next(false)': function(t) {
-            var router = new Router.NanoRouter();
-            var called = false;
-            router.setRoute('/path1', [
-                function(req, res, next) { next(false) },
-                function(req, res, next) { called = true; next() }
-            ]);
-            router.runRoute({}, { url: '/path1' }, {}, function(err) {
-                t.ok(!err);
-                t.ok(!called);
-                t.done();
-            })
-        },
-
-        'runRoute should return error on unrouted path': function(t) {
-            var router = new Router.NanoRouter();
-            router.runRoute({}, { url: '/test/url' }, {}, function(err) {
-                t.ok(err);
-                t.contains(err.message, 'not routed');
-                t.done();
-            })
-        },
-
-        'runRoute should return mw error and stop mw chain': function(t) {
-            var router = new Router.NanoRouter();
-            var called = false;
-            router.setRoute('/path1', [
-                function(req, res, next) { next() },
-                function(req, res, next) { next('mw error') },
-                function(req, res, next) { called = true; next() }
-            ]);
-            router.runRoute({}, { url: '/path1' }, {}, function(err) {
-                t.ok(err);
-                t.equal(err, 'mw error');
-                t.ok(!called);
-                t.done();
-            })
-        },
-
-        'runRoute should catch and return mw exception': function(t) {
-            var router = new Router.NanoRouter();
-            router.setRoute('/path1', function(req, res, next) { throw 'mw error' });
-            router.runRoute({}, { url: '/path1' }, {}, function(err) {
-                t.ok(err);
-                t.equal(err, 'mw error');
-                t.done();
-            })
         },
     },
 }

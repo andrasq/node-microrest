@@ -10,7 +10,7 @@ var microreq = require('microreq');
 var qtimeit = require('qtimeit');
 
 var mw = require('./mw');
-var Router = require('./router');
+var rest = require('./rest');
 
 var basePort = 1337;
 var frameworks = {
@@ -92,7 +92,7 @@ if (cluster.isMaster) {
 
     if (frameworks.rest_mw) {
         // 44.1k/s 85.1us
-        servers.rest_mw = frameworks.rest_mw.pkg.createServer({ port: frameworks.rest_mw.port, /*router: new Router.NanoRouter()*/ });
+        servers.rest_mw = frameworks.rest_mw.pkg.createServer({ port: frameworks.rest_mw.port, /*router: new rest.NanoRouter()*/ });
         servers.rest_mw._rest.router = new (require('./router'))();
         //servers.rest_mw._rest.setRoute('/test1', function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });
         // 43.3k/s
@@ -106,7 +106,7 @@ if (cluster.isMaster) {
         // 46.6k/s routed, 82.7us
         // 46.5k/s using NanoRouter (45.3k/s w sendResponse)
         //servers.rest_ha = frameworks.rest_ha.pkg({ processRequest: processRequest });                                         // 46.6k/s
-        servers.rest_ha = frameworks.rest_ha.pkg({ router: new Router.NanoRouter() });
+        servers.rest_ha = frameworks.rest_ha.pkg({ router: new rest.NanoRouter() });
         servers.rest_ha.use(path1, function(req, res, next) { res.end(response1); next() });                                    // 46.5k/s
         //servers.rest_ha.use(path1, function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });      // 46.2k/s
         http.createServer(servers.rest_ha).listen(frameworks.rest_ha.port);
