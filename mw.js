@@ -57,6 +57,7 @@ function _testRepeatUntilDone(err, done) { return err || done; }
 function _tryCall(func, cb, arg) { try { func(cb, arg) } catch (err) { cb(err) } }
 function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
 function _testMwStepsDone(err, done) { return err || done || err === false; }
+function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 
 // run the middleware stack until one returns next(err) or next(false)
 function runMwSteps( steps, req, res, callback ) {
@@ -69,12 +70,11 @@ function runMwSteps( steps, req, res, callback ) {
 function runMwErrorSteps( steps, err, req, res, callback ) {
     var ix = 0;
     repeatUntil(tryEachHandler, null, _testRepeatUntilDone, callback);
-    function tryEachHandler(next, context) {
+    function tryEachHandler(next) {
         function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
         (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined()) : next(null, 'done');
     }
 }
-function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 
 // simple query string parser
 // handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]
