@@ -15,6 +15,7 @@ var https = require('https');
 var rest = module.exports = createHandler;
 module.exports.Rest = Rest;
 module.exports.HttpError = HttpError;
+module.exports.NanoRouter = NanoRouter;
 module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
 module.exports = toStruct(module.exports);
@@ -119,6 +120,42 @@ function Rest( options ) {
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
     this.onRequest = function(req, res, next) { self._onRequest(req, res, next); }
+}
+
+function noopStep( req, res, next ) { next() }
+function NanoRouter( ) {
+    this.routes = { use: noopStep, err: noopStep, post: noopStep, readBody: Rest.prototype.readBody };
+    this.matchPrefix = true;
+}
+NanoRouter.prototype.setRoute = function setRoute( path, method, mwStep ) {
+    if (!mwStep) { mwStep = method; method = '_ANY_' }
+    if (typeof path === 'function') path.length === 4 ? this.routes.err = path : this.routes.use = path;
+    else if (typeof mwStep !== 'function') throw new Error('mw step must be a function');
+    this.routes[path] = mwStep;
+}
+NanoRouter.prototype.getRoute = function getRoute( path, method ) {
+    var mwSteps = this.routes[path];
+    while (!mwSteps && this.matchPrefix && path.length > 1) mwSteps = this.routes[path = path.slice(path, path.lastIndexOf('/')) || '/'];
+    return mwSteps;
+}
+NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
+    delete this.routes[path];
+}
+function _tryStep( fn, req, res, next ) { try { fn(req, res, next) } catch (err) { next(err) } }
+function _tryErrStep( fn, err, req, res, next ) { try { fn(err, req, res, next) } catch (err) { next(err) } }
+NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
+    var self = this, err1, err2, err3, err4;
+    _tryStep(self.routes.use, req, res, function(err) {
+        if (err1 = err) return runError();
+    _tryStep(self.routes.readBody, req, res, function(err2) {
+        if (err2 = err) return runError();
+    self.routes[req.url]
+        ? _tryStep(self.routes[req.url], req, res, runError)
+        : runError(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
+    }) })
+    function runError(err) { err3 = err; err = err1 || err2 || err3; err ? _tryErrStep(self.routes.err, err, req, res, runFinally) : runFinally() }
+    function runFinally(err) { _tryStep(self.routes.post, req, res, returnNextTick) }
+    function returnNextTick(err) { err4 = err; process.nextTick(next, err1 || err2 || err3 || err4) }
 }
 
 

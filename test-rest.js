@@ -634,9 +634,103 @@ module.exports = {
             },
         },
     },
+
+    'NanoRouter': {
+        'setRoute should accept functions': function(t) {
+            var router = new rest.NanoRouter();
+            router.setRoute(noop);
+            router.setRoute('/path1', noop);
+            t.done();
+        },
+
+        'getRoute should return the mw steps or null': function(t) {
+            var router = new rest.NanoRouter();
+            router.setRoute('/path2', noop);
+            t.deepEqual(router.getRoute('/path0'), null);
+            t.deepEqual(router.getRoute('/path2'), noop);
+            t.done();
+        },
+
+        'getRoute should match a routed prefix': function(t) {
+            var router = new rest.NanoRouter();
+            router.setRoute('/', noop);
+            router.setRoute('/path', noop2);
+            router.setRoute('/path/name', noop3);
+            t.deepEqual(router.getRoute('/path/name'), noop3);
+            t.deepEqual(router.getRoute('/path/othername'), noop2);
+            t.deepEqual(router.getRoute('/otherpath'), noop);
+            t.deepEqual(router.getRoute('withoutslash'), null);
+            t.done();
+        },
+
+        'deleteRoute should remove route': function(t) {
+            var router = new rest.NanoRouter();
+            router.setRoute('/path1', noop);
+            router.deleteRoute('/path1');
+            t.equal(router.getRoute('path1'), null);
+            t.done();
+        },
+
+        'setRoute should reject non-function mw': function(t) {
+            var router = new rest.NanoRouter();
+            t.throws(function(){ router.setRoute(123) }, /must be a function/);
+            t.throws(function(){ router.setRoute('/path', 123) }, /must be a function/);
+            t.throws(function(){ router.setRoute('/path', {}) }, /must be a function/);
+            t.done();
+        },
+
+        'runRoute should run use and mw steps': function(t) {
+            var router = new rest.NanoRouter();
+            var calls = [];
+            router.setRoute(function(req, res, next) { calls.push('use1'); next() });
+            router.setRoute(function(req, res, next) { calls.push('use2'); next() });
+            router.setRoute('/test/path', function(req, res, next) { calls.push('path1'); next() });
+            var app = { readBody: function(req, res, next) { req.body = "mock body"; next() } };
+            var req = { url: '/test/path', method: 'GET' };
+            var res = {};
+            router.runRoute(app, req, res, function(err) {
+                t.ok(!err)
+                t.deepEqual(calls, ['use2', 'path1']);
+                t.done();
+            });
+        },
+
+        'runRoute should return error on unrouted path': function(t) {
+            var router = new rest.NanoRouter();
+            router.runRoute({}, { url: '/test/url' }, {}, function(err) {
+                t.ok(err);
+                t.contains(err.message, 'not routed');
+                t.done();
+            })
+        },
+
+        'runRoute should return mw error': function(t) {
+            var router = new rest.NanoRouter();
+            var called = false;
+            router.setRoute('/path1', function(req, res, next) { next('mw error') });
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.ok(err);
+                t.equal(err, 'mw error');
+                t.ok(!called);
+                t.done();
+            })
+        },
+
+        'runRoute should catch and return mw exception': function(t) {
+            var router = new rest.NanoRouter();
+            router.setRoute('/path1', function(req, res, next) { throw 'mw error' });
+            router.runRoute({}, { url: '/path1' }, {}, function(err) {
+                t.ok(err);
+                t.equal(err, 'mw error');
+                t.done();
+            })
+        },
+    },
 }
 
 function noop(){};
+function noop2(){};
+function noop3(){};
 
 function mockReq() {
     var req = new events.EventEmitter();
