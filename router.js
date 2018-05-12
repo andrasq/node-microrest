@@ -12,9 +12,12 @@ module.exports.NanoRouter = NanoRouter;
 var mw = require('./mw');
 
 
+function noopStep( req, res, next ) { next() }
 function NanoRouter( ) {
+// TODO: call NanoRouter NonRouter, move back into rest, and only allow one step per route!
     this.use = new Array();
     this.err = new Array();
+    this.post = noopStep;
     this.routes = {};
 }
 NanoRouter.prototype.setRoute = function setRoute( path, method, mwSteps ) {
@@ -34,18 +37,33 @@ NanoRouter.prototype.getRoute = function getRoute( path, method ) {
 NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
     delete this.routes[path];
 }
+function _tryStep( fn, req, res, next ) { try { fn(req, res, next) } catch (err) { next(err) } }
 NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
     var mwSteps = this.getRoute(req.url);
     if (mwSteps) mw.runMwSteps(mwSteps, req, res, next);
     else next(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
+return;
+    // TODO: run route where each use/err/post is a single function, never an array
+    var self = this;
+    _tryStep(self.use, req, res, function(err) {
+        if (err) return runError(err, req, res);
+        self.routes[req.url]
+            ? _tryStep(self.routes[req.url], req, res, runError)
+            : runError(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
+    })
+    function runError(err, req, res) { err ? _tryStep(self.err, err, req, res, runFinally) : funFinally(req, res) }
+    function runFinally(req, res) { _tryStep(self.post, req, res, next) }
 }
 
 function Router( ) {
+    this.NotRoutedHttpCode = 404;
     this.steps = {
         pre: new Array(),
         use: new Array(),
         post: new Array(),
         err: new Array(),
+// TODO: run post as a finally step, after error handling
+// TODO: support only 'use', path, 'err', and 'finally' steps
 // TODO: handle uncaughtException too
     };
     this.maproutes = {};                // direct lookup routes
