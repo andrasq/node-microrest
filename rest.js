@@ -23,7 +23,7 @@ function createServer( options, callback ) {
     options = options || {};
     if (!callback && typeof options === 'function') { callback = options; options = {} };
 
-    var rest = new Rest();
+    var rest = options.rest || new Rest();
     var server = (options.protocol === 'https:')
         ? https.createServer(options, rest.onRequest)
         : http.createServer(rest.onRequest);
@@ -73,15 +73,13 @@ function createHandler( options ) {
         fn.name = method;
     })
     handler.del = handler.delete;
+    handler.listen = function(options, callback) {
+        options = (options > 0 || options === 0) ? { port: options } : options ? options : { port: 0 };
+        options.rest = handler.rest;
+        return rest.createServer(options, callback)
+    };
 
     return handler;
-}
-
-function listen( options, callback ) {
-    if (!callback && typeof options === 'function') { callback = options; options = null }
-    options = options || { port: 0 };
-    port = options.port || options;
-    rest.createServer(options, callback);
 }
 
 // ----------------------------------------------------------------
@@ -105,9 +103,6 @@ function Rest( options ) {
     options = options || {};
     var self = this;
 
-    this.NotRoutedHttpCode = options.NotRoutedHttpCode || 404;
-    this.HttpError = HttpError;
-
     this.encoding = options.encoding !== undefined ? options.encoding : 'utf8';
     this.bodySizeLimit = options.bodySizeLimit || Infinity;
 
@@ -120,6 +115,7 @@ function Rest( options ) {
         if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
         next(err2);
     };
+    this.onFinally = options.onFinally || function(req, res, next) { next() };
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
     this.onRequest = function(req, res, next) { self._onRequest(req, res, next); }
@@ -152,7 +148,7 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
         req.setEncoding(self.encoding);
         if (self.router) return self.router.runRoute(self, req, res, returnError);
         self.readBody(req, res, function(err, body) {
-            if (err || !self.processRequest) return returnError(err || new self.HttpError(500, 'no router or processRequest configured'));
+            if (err || !self.processRequest) return returnError(err || new rest.HttpError(500, 'no router or processRequest configured'));
             try { self.processRequest(req, res, returnError, body); } catch (e) { returnError(e) }
         })
     }
@@ -164,10 +160,10 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
 
 Rest.prototype.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
-    var rest = this, body = '', chunks = null, bodySize = 0;
+    var self = this, body = '', chunks = null, bodySize = 0;
 
     req.on('data', function(chunk) {
-        if ((bodySize += chunk.length) >= rest.bodySizeLimit) return;
+        if ((bodySize += chunk.length) >= self.bodySizeLimit) return;
         if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
         else (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk));
     })
@@ -175,7 +171,7 @@ Rest.prototype.readBody = function readBody( req, res, next ) {
         next(err);
     })
     req.on('end', function() {
-        if (bodySize > rest.bodySizeLimit) return next((new rest.HttpError(400, 'max body size exceeded')), 1);
+        if (bodySize > self.bodySizeLimit) return next((new rest.HttpError(400, 'max body size exceeded')), 1);
         body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : '');
         if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
         req.body = body;

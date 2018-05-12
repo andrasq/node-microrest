@@ -11,7 +11,7 @@ var events = require('events');
 
 var rest = require('./');
 var Rest = rest.Rest;
-var HttpError = rest.HttpError;
+var mw = require('./mw');
 
 module.exports = {
     'module': {
@@ -34,14 +34,13 @@ module.exports = {
 
         'should expose expected properties': function(t) {
             var rest = new Rest();
-            t.equal(rest.NotRoutedHttpCode, 404);
             t.equal(typeof rest.onRequest, 'function');
+            // TODO: t.equal(typeof rest.handler, rest.onRequest);
             t.done();
         },
 
         'should expose optional properties': function(t) {
             var options = {
-                NotRoutedHttpCode: 405,
                 encoding: 'base64',
                 bodySizeLimit: 123456,
                 mw: {},
