@@ -131,7 +131,7 @@ function NanoRouter( ) {
 }
 NanoRouter.prototype.setRoute = function setRoute( path, method, mwStep ) {
     if (!mwStep) { mwStep = method; method = '_ANY_' }
-    if (Array.isArray(mwStep)) mwStep = mwStep[0];
+    if (Array.isArray(mwStep)) { if (mwStep.length !== 1) throw new Error('multiple mw steps not supported'); mwStep = mwStep[0]; }
     if (typeof path === 'function') path.length === 4 ? this.routes.err = path : this.routes.use = path;
     else if (typeof mwStep !== 'function') throw new Error('mw step must be a function');
     this.routes[path] = mwStep;
