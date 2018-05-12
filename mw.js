@@ -79,7 +79,7 @@ function runMwErrorSteps( steps, err, req, res, callback ) {
 // simple query string parser
 // handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]
 function parseQuery( str ) {
-    var urldecode = function(s) { try { return decodeURIComponent(s) } catch (e) { return s } };
+    var urldecode = function(s) { if (!/[%+]/.test(s)) return s; try { return decodeURIComponent(s) } catch (e) { return s } };
     var parts = str.split('&');
 
     var hash = {};
