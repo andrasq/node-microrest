@@ -7,8 +7,13 @@ Perfect for adding a web API to an existing app.
     const rest = require('microrest');
 
     const app = rest();
-    app.get('/hello', (req, res, next) => { console.log("Hello!"); next() });
-    app.listen(1337, (err, serverInfo) => { /* listening */ });
+    app.get('/hello', (req, res, next) => {
+        res.end('hello back');
+        next();
+    })
+    app.listen(1337, (err, serverInfo) => {
+        console.log('app listening on port %d', serverInfo.port);
+    })
 
 
 Benchmark
@@ -39,10 +44,17 @@ With the test load generated externally to nodejs by `wrk` (wrk is more efficien
     http        50028.63        --------------------------------------------------
 
 
+Testing
+-------
+
+To keep the size small, the npm package does not in include the tests.  To run the
+tests or benchmarks, check out the repo from https://github.com/andrasq/node-microrest.
+
+
 Api
 ---
 
-### require('microrest')
+### rest = require('microrest')
 
 Return a request handler builder.
 
@@ -104,18 +116,18 @@ The returned object has a bound method `onRequest` for use as an `on('request')`
 listener in an http server.
 
 Options:
-- encoding - how to convert the request body, or `null` to return raw bytes.
+- `encoding` - how to convert the request body, or `null` to return raw bytes.
   Default 'utf8'; use `null` to not decode but return raw bytes.
-- router - the router to use.  Default is to use `processRequest`.
-- processRequest(req, res, next) - user function to process requests.
+- `router` - the router to use.  Default is to use `processRequest`.
+- `processRequest(req, res, next)` - user function to process requests.
   No default.  It is an error for neither a router nor processRequest be given.
-- onError(err) - user-defined middleware step to handle errors
+- `onError(err, req, res, next)` - user-defined middleware step to handle errors
 
 A `new Rest` object has properties that may be set:
-- encoding - options.encoding
-- router - options.router
-- processRequest - options.processRequest
-- onError - options.onError
+- `encoding` - options.encoding
+- `router` - options.router
+- `processRequest` - options.processRequest
+- `onError` - options.onError
 
 Helper methods:
 - `HttpError(statusCode, debugMessage, details)` - http error builder, returns instanceof Error.
@@ -128,6 +140,29 @@ Helper methods:
    as the last resort error handler from routed path execution.
 - `sendResponse(req, res, next, err, statusCode, body, headers)` -
 
+
+Router
+------
+
+`Rest` uses by default a tiny built-in router accessible as `rest.NanoRouter`.
+NanoRouter supports a single `use` step, a single error handler `err` step, one
+middleware function step for each mapped route, and a `post` step that is run like a
+try/catch "finally" after all the other steps and/or the error handler have run.
+Redefinig a step overwrites the previous.
+
+NanoRouter ignores the request method and matches the request path either in its
+entirety, or to the longest `/`-separated mapped prefix.  The mapped prefix '/my/path'
+would match '/my/path/name' and '/my/path/othername', but not '/my' nor
+'/my/otherpath'.  NanoRouter does not support pathname parameters (ie,
+`/path/:param1/:param2`).
+
+A router used by `Rest` needs to support the api
+- `setRoute(path, [method,] mw)` - map the route to the mw.  `mw` can be a function(req, res, next)
+  or an array of mw functions.  The path may or may not start with a leading `/` slash:
+  use steps are path 'use', error handlers are path 'err'.
+- `runRoute(rest, req, res, next)` - apply the defined route to the request, including
+  `use` and `err` steps, if any.  Any error returned to the callback will be passed to
+  `onError`.
 
 Related Work
 ------------
