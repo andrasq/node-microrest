@@ -20,6 +20,7 @@ module.exports.HttpError = HttpError;
 module.exports.NanoRouter = NanoRouter;
 module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
+module.exports.readBody = Rest.prototype.readBody;
 module.exports = toStruct(module.exports);
 
 function createServer( options, callback ) {

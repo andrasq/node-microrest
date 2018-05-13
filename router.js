@@ -10,7 +10,8 @@ module.exports = Router;
 
 var mw = require('./mw');
 
-function Router( ) {
+function Router( options ) {
+    options = options || {};
     this.NotRoutedHttpCode = 404;
     this.steps = {
         pre: new Array(),
@@ -24,6 +25,9 @@ function Router( ) {
     this.maproutes = {};                // direct lookup routes
     this.rexroutes = new Array();       // regex matched routes
     this.rexmap = {};                   // matched routes, by path
+    this.readBody = options.readBody || mw.readBody;
+    this.runMwSteps = options.runMwSteps || mw.runMwSteps;
+    this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
 }
 
 Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel ) {
@@ -91,12 +95,18 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var self = this;
     var route;
+    var bodyEnd = false;
+
+    function onEnd() { bodyEnd = true; }
+    req.once('end', onEnd);
+    req.once('error', onEnd);
+    req.once('close', onEnd);
 
     var mwSteps = [
         // pre steps are always run, before call is routed
         function runPreRouteSetup(req, res, next) {
             if (!self.steps.pre.length) return next();
-            mw.runMwSteps(self.steps.pre, req, res, next);
+            self.runMwSteps(self.steps.pre, req, res, next);
         },
         function doRoute(req, res, next) {
             route = self.getRoute(req.url, req.method);
@@ -107,27 +117,27 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         // TODO: do not provide the body, require that some use() step reads it!
         function readBodyBeforeMw(req, res, next) {
             // TODO: readBody should live in mw, but also needed by rest.js
-            (req.body !== undefined) ? next() : rest.readBody(req, res, function(err, body) { next(err) });
+            (bodyEnd || req.body !== undefined) ? next() : self.readBody(req, res, function(err, body) { next(err) });
             // TODO: do not read body by default, let mw handle it
         },
         // the call middleware stack includes the relevant 'use' and route steps
         // use 'use' steps to parse the query string and body params
         function runMw(req, res, next) {
-            mw.runMwSteps(route.mw || route, req, res, next);
+            self.runMwSteps(route.mw || route, req, res, next);
         },
     ];
 
-    mw.runMwSteps(mwSteps, req, res, function(err1) {
+    self.runMwSteps(mwSteps, req, res, function(err1) {
         // post steps are always run, after middleware stack (even if error or call was not routed)
         if (!err1 && !self.steps.post.length) return callback();
-        mw.runMwSteps(self.steps.post, req, res, function(err2) {
+        self.runMwSteps(self.steps.post, req, res, function(err2) {
             // TODO: if (req.body === undefined) req.resume();
             if (!err1 && !err2) return callback();
 
             // TODO: maybe emit errors, so can handle even nested errors
 
             // error handlers are run if any mw step returned error
-            mw.runMwErrorSteps(self.steps.err, err1 || err2, req, res, function(err3) {
+            self.runMwErrorSteps(self.steps.err, err1 || err2, req, res, function(err3) {
                 if (err3 === err1) console.error('microrest-router: unhandled mw error', err3);
                 if (err3 === err2) console.error('microrest-router: unhandled post mw error', err3);
                 if (err1 && err2) console.error('microrest-router: double-fault: unhandled error from post mw', err2);

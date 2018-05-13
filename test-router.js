@@ -1,10 +1,16 @@
 'use strict';
 
 var Router = require('./router');
+var mw = require('./mw');
+var rest = require('./rest');
 
 module.exports = {
     setUp: function(done) {
-        this.router = new Router();
+        this.router = new Router({
+            readBody: rest.readBody,
+            runMwSteps: mw.runMwSteps,
+            runMwErrorSteps: mw.runMwErrorSteps,
+        });
         this.fn1 = function fn1(req, res, next) { next() };
         this.fn2 = function fn2(req, res, next) { next() };
         this.fne = function fne(err, req, res, next) { next() };
@@ -207,7 +213,7 @@ module.exports = {
             this.router.setRoute('err', function(err, req, res, next) { calls.push('err1'); next() });
             this.router.setRoute('err', function(err, req, res, next) { calls.push('err2'); next() });
             var rest = { readBody: function(req, res, next) { req.body = "mock body"; next() } };
-            var req = { url: '/test/path', method: 'GET' };
+            var req = { url: '/test/path', method: 'GET', once: noop };
             var res = {};
             this.router.runRoute(rest, req, res, function(err) {
                 t.equal(err, 'test error');
