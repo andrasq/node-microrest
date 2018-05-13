@@ -4,20 +4,18 @@ microrest
 Extremely small, extremely fast embeddable REST web framework.
 Perfect for adding a web API to an existing app.
 
-WORK IN PROGRESS
-
     const rest = require('microrest');
 
     const app = rest();
     app.get('/hello', (req, res, next) => { console.log("Hello!"); next() });
-
-    require('http').createServer(app).listen(8086);
+    app.listen(1337, (err, serverInfo) => { /* listening */ });
 
 
 Benchmark
 ---------
 
-Rate to serve 100 calls with a 20 byte request, 200 byte response:
+Requests served per second in batches of 100 concurrent calls a 20 byte request, 200
+byte response, calls made by nodejs using a keepAlive Agent with default maxSockets:
 
     qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50 platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
     arch=ia32 mhz=4384 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
@@ -28,9 +26,18 @@ Rate to serve 100 calls with a 20 byte request, 200 byte response:
     rest        30,355 ops/sec   2497 >>>>>>>>>>>>
     http        30,360 ops/sec   2497 >>>>>>>>>>>>
 
-And, just for fun, a fast non-REST remote procedure call library:
+And, just for fun, a fast non-REST remote procedure call library (single socket):
 
     qrpc       135,219 ops/sec  11122 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+With the test load generated externally to nodejs by `wrk` (wrk is more efficient than `ab`):
+
+    # wrk -d2s -t2 -c8 http://localhost:1337/test1
+    restify     13470.84        --------------
+    express     19595.85        --------------------
+    rest_ha     46415.50        ----------------------------------------------
+    rest        48360.44        ------------------------------------------------
+    http        49921.20        --------------------------------------------------
 
 
 Api
