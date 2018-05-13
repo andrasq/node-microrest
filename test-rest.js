@@ -11,7 +11,6 @@ var events = require('events');
 
 var rest = require('./');
 var Rest = rest.Rest;
-var mw = require('./mw');
 
 module.exports = {
     'module': {
