@@ -9,9 +9,9 @@ var http = require('http');
 var microreq = require('microreq');
 var qtimeit = require('qtimeit');
 
-var mw = require('./mw');
 var rest = require('./rest');
-var Router = require('./router');
+// var mw = require('./mw');
+//var Router = require('./router');
 
 var basePort = 1337;
 var frameworks = {
@@ -19,7 +19,7 @@ var frameworks = {
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
     restiq:  { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
     connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
-    rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
+//    rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
     rest_ha: { pkg: require('./'), ver: require('./package').version, port: 1347 },
     rest:    { pkg: require('./'), ver: require('./package').version, port: 1339 },
     http_buf: { pkg: require('http'), ver: process.version, port: 1344 },
@@ -106,16 +106,18 @@ if (cluster.isMaster) {
         // 49.3k/s, 76.8us
         // 46.6k/s routed, 82.7us
         // 46.5k/s using NanoRouter (45.3k/s w sendResponse)
-        //servers.rest_ha = frameworks.rest_ha.pkg({ processRequest: processRequest });                                         // 46.6k/s
         servers.rest_ha = frameworks.rest_ha.pkg({ router: new rest.NanoRouter() });
-        servers.rest_ha.use(path1, function(req, res, next) { res.end(response1); next() });                                    // 46.5k/s
+        servers.rest_ha.get(path1, function(req, res, next) { res.end(response1); next() });                                    // 46.5k/s
+        servers.rest_ha.listen(frameworks.rest_ha.port);
+        //servers.rest_ha = frameworks.rest_ha.pkg({ processRequest: processRequest });                                         // 46.6k/s
+        //servers.rest_ha.use(path1, function(req, res, next) { res.end(response1); next() });                                    // 46.5k/s
         //servers.rest_ha.use(path1, function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });      // 46.2k/s
-        http.createServer(servers.rest_ha).listen(frameworks.rest_ha.port);
+        //http.createServer(servers.rest_ha).listen(frameworks.rest_ha.port);
         function noop(){}
         function processRequest(req, res) {
             if (req.url === path1 && req.method === 'GET') {
                 //return mw.sendResponse(req, res, noop, null, 200, response1);
-                mw.writeResponse(res, 200, response1, null);    // same speed as sendResponse
+                //mw.writeResponse(res, 200, response1, null);    // same speed as sendResponse
             }
             mw.sendResponse(req, res, noop, new servers.rest_ha._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
         }
@@ -127,10 +129,10 @@ if (cluster.isMaster) {
         function noop(){}
         servers.rest._rest.processRequest = function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
-                //res.end(response1);
-                return mw.sendResponse(req, res, noop, null, 200, response1);
+                res.end(response1);
+                //return mw.sendResponse(req, res, noop, null, 200, response1);
             }
-            mw.sendResponse(req, res, noop, new servers.rest._rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
+            else servers.rest._rest._tryWriteResponse(res, 404, {}, req.method + ' ' + req.url + ': path not routed');
         }
     }
 

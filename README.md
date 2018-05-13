@@ -18,13 +18,12 @@ Requests served per second in batches of 100 concurrent calls a 20 byte request,
 byte response, calls made by nodejs using a keepAlive Agent with default maxSockets:
 
     qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50 platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
-    arch=ia32 mhz=4384 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
-    name         speed           rate
-    restify     12,157 ops/sec   1000 >>>>>
-    express     16,661 ops/sec   1370 >>>>>>>
-    rest_ha     29,608 ops/sec   2435 >>>>>>>>>>>>
-    rest        30,355 ops/sec   2497 >>>>>>>>>>>>
-    http        30,360 ops/sec   2497 >>>>>>>>>>>>
+    arch=ia32 mhz=4383 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
+    restify     12,362 ops/sec   1000 >>>>>
+    express     16,672 ops/sec   1349 >>>>>>>
+    rest_ha     29,533 ops/sec   2389 >>>>>>>>>>>>
+    rest        30,286 ops/sec   2450 >>>>>>>>>>>>
+    http        30,452 ops/sec   2463 >>>>>>>>>>>>
 
 And, just for fun, a fast non-REST remote procedure call library (single socket):
 
@@ -33,11 +32,11 @@ And, just for fun, a fast non-REST remote procedure call library (single socket)
 With the test load generated externally to nodejs by `wrk` (wrk is more efficient than `ab`):
 
     # wrk -d2s -t2 -c8 http://localhost:1337/test1
-    restify     13470.84        --------------
-    express     19595.85        --------------------
-    rest_ha     46415.50        ----------------------------------------------
-    rest        48360.44        ------------------------------------------------
-    http        49921.20        --------------------------------------------------
+    restify     13407.58        -------------
+    express     19270.78        -------------------
+    rest_ha     45397.93        ---------------------------------------------
+    rest        50357.36        --------------------------------------------------
+    http        50028.63        --------------------------------------------------
 
 
 Api
