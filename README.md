@@ -7,12 +7,11 @@ Perfect for adding a web API to an existing app.
 WORK IN PROGRESS
 
     const rest = require('microrest');
-    const app = rest({ processRequest: processRequest });
-    require('http').createServer(app).listen(8086);
 
-    function processRequest(res, res, [next, [body]]) {
-        // process request specified by req.method and req.url
-    }
+    const app = rest();
+    app.get('/hello', (req, res, next) => { console.log("Hello!"); next() });
+
+    require('http').createServer(app).listen(8086);
 
 
 Benchmark
@@ -21,38 +20,51 @@ Benchmark
 Rate to serve 100 calls with a 20 byte request, 200 byte response:
 
     qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50 platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
-    arch=ia32 mhz=4386 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
-    name       speed           rate
-    restify      125 ops/sec   1000 >>>>>
-    express      172 ops/sec   1382 >>>>>>>
-    rest         309 ops/sec   2460 >>>>>>>>>>>>
-    http         313 ops/sec   2491 >>>>>>>>>>>>
+    arch=ia32 mhz=4384 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
+    name         speed           rate
+    restify     12,157 ops/sec   1000 >>>>>
+    express     16,661 ops/sec   1370 >>>>>>>
+    rest_ha     29,608 ops/sec   2435 >>>>>>>>>>>>
+    rest        30,355 ops/sec   2497 >>>>>>>>>>>>
+    http        30,360 ops/sec   2497 >>>>>>>>>>>>
 
-And, just for fun, a non-REST remote procedure call library:
+And, just for fun, a fast non-REST remote procedure call library:
 
-    qrpc       1,278 ops/sec  10152 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    qrpc       135,219 ops/sec  11122 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
 Api
 ---
 
+### require('microrest')
+
+Return a request handler builder.
+
 ### rest( [options] )
 
 Create a request handler app function that can work as a (simple) app.
+The options are passed to `new Rest()`, described below.
 
 The app function is called on every http request.  It reads the request body,
 and invokes the configured `processRequest` function that sends the response.
 
 The app has properties
-- rest - the Rest instance the app uses
-- use - mw routing method, if options.router is given
-- get, post, put, del, etc - mw routing methods, if options.router is given
+- app.rest - the Rest instance the app uses
 
-The options are passed to `new Rest()`, described below.
+The app has methods
+- app.use(func) - mw routing method.  Calling app.use switches to running in routed mode,
+  `processRequest` will not be called.  A four-argument function is used as the error handler,
+  else as the pre-middleware step.
+- app.get, app.post, app.put, app.del, etc - mw routing methods
+- onError(err, req, res, next) - function called if the route handler encounters an error
+- listen([portOrOptions], [callback]) - invoke rest.createServer with this app as the
+  request listener.  Port can be numeric, or can be createServer options.
 
     const rest = require('microrest');
     const app = rest();
-    require('http').createServer(app).listen(8086);
+    const server = app.listen(1337, function(err, serverInfo) {
+        // app is listening
+    });
 
 ### rest.createServer( [options] [,callback] )
 
@@ -76,25 +88,28 @@ Options:
 
 ### rest.createHandler( [options] )
 
-This is the function that implements `rest()`.
+This is the same function as `rest()`.
 Returns a function `handler(req, res, [next])`.
 
 ### new rest.Rest( [options] )
 
 Rest instance implementation class, called by createHandler() and createServer().
+The returned object has a bound method `onRequest` for use as an `on('request')`
+listener in an http server.
 
 Options:
-- NotRoutedHttpCode (default 404)
-- encoding (default 'utf8', use `null` to not decode and return raw bytes)
-- bodySizeLimit (default unlimited)
-- router (default none)
-- processRequest (default none) - user function to process requests
-- onError - user-defined middleware step to handle errors
+- encoding - how to convert the request body, or `null` to return raw bytes.
+  Default 'utf8'; use `null` to not decode but return raw bytes.
+- router - the router to use.  Default is to use `processRequest`.
+- processRequest(req, res, next) - user function to process requests.
+  No default.  It is an error for neither a router nor processRequest be given.
+- onError(err) - user-defined middleware step to handle errors
 
-Properties:
-- `encoding` - how to convert the request body, or `null` to return raw bytes.
-            Same as `options.encoding`.
-- `router` - the provided router, if any.
+A `new Rest` object has properties that may be set:
+- encoding - options.encoding
+- router - options.router
+- processRequest - options.processRequest
+- onError - options.onError
 
 Helper methods:
 - `HttpError(statusCode, debugMessage, details)` - http error builder, returns instanceof Error.
@@ -106,13 +121,6 @@ Helper methods:
 - `onError(err, req, res, next)` - invoked on readBody or processRequest error, or
    as the last resort error handler from routed path execution.
 - `sendResponse(req, res, next, err, statusCode, body, headers)` -
-
-
-Todo
-----
-
-- maybe a way of addressing 'uncaughtException'?
-- make createServer create an app, and attach it to server._app
 
 
 Related Work
