@@ -52,6 +52,12 @@ module.exports = {
         },
 
         'edge cases': {
+            'should require path': function(t) {
+                var router = this.router;
+                t.throws(function(){ router.setRoute(noop) }, /path.* required/);
+                t.done();
+            },
+
             'should reject invalid mount path': function(t) {
                 try { this.router.setRoute('badwhere', [this.fn1]). t.fail() }
                 catch (e) { t.contains(e.message, 'invalid mw mount path'); }
