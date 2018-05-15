@@ -20,7 +20,7 @@ module.exports.HttpError = HttpError;
 module.exports.NanoRouter = NanoRouter;
 module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
-module.exports.readBody = Rest.prototype.readBody;
+module.exports.readBody = readBody;
 module.exports = toStruct(module.exports);
 
 function createServer( options, callback ) {
@@ -182,7 +182,8 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
 }
 function _reportErrError(err, cause) { if (err) console.error('%s -- microrest: onError %s:', new Date().toISOString(), cause, err) }
 
-Rest.prototype.readBody = function readBody( req, res, next ) {
+Rest.prototype.readBody = readBody;
+function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
     var body = '', chunks = null, bodySize = 0;
 

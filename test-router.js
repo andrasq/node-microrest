@@ -213,7 +213,7 @@ module.exports = {
             this.router.setRoute('err', function(err, req, res, next) { calls.push('err1'); next() });
             this.router.setRoute('err', function(err, req, res, next) { calls.push('err2'); next() });
             var rest = { readBody: function(req, res, next) { req.body = "mock body"; next() } };
-            var req = { url: '/test/path', method: 'GET', once: noop };
+            var req = { url: '/test/path', method: 'GET', once: noop, on: noop, body: '' };
             var res = {};
             this.router.runRoute(rest, req, res, function(err) {
                 t.equal(err, 'test error');

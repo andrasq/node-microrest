@@ -71,8 +71,8 @@ function runMwErrorSteps( steps, err, req, res, callback ) {
     var ix = 0;
     repeatUntil(tryEachHandler, null, _testRepeatUntilDone, callback);
     function tryEachHandler(next) {
+        return (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined) : next(null, 'done');
         function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
-        (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined()) : next(null, 'done');
     }
 }
 
