@@ -90,15 +90,11 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
 }
 
 // apply the steps defined for the route to the http request
+function _reportCbError(err) { mw.warn('microroute: runRoute cb threw:', err) }
+function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(e) } }
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var self = this;
     var route;
-    var bodyEnd = false;
-
-    function onEnd() { bodyEnd = true; }
-    req.once('end', onEnd);
-    req.once('error', onEnd);
-    req.once('close', onEnd);
 
     var mwSteps = [
         // pre steps are always run, before call is routed
@@ -115,7 +111,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         // TODO: do not provide the body, require that some use() step reads it!
         function readBodyBeforeMw(req, res, next) {
             // TODO: readBody should live in mw, but also needed by rest.js
-            (bodyEnd || req.body !== undefined) ? next() : self.readBody(req, res, function(err, body) { next(err) });
+            (req.body !== undefined) ? next() : self.readBody(req, res, function(err, body) { next(err) });
             // TODO: do not read body by default, let mw handle it
         },
         // the call middleware stack includes the relevant 'use' and route steps
@@ -127,10 +123,10 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
 
     self.runMwSteps(mwSteps, req, res, function(err1) {
         // post steps are always run, after middleware stack (even if error or call was not routed)
-        if (!err1 && !self.steps.post.length) return callback();
+        if (!err1 && !self.steps.post.length) return _tryCb(callback);
         self.runMwSteps(self.steps.post, req, res, function(err2) {
             // TODO: if (req.body === undefined) req.resume();
-            if (!err1 && !err2) return callback();
+            if (!err1 && !err2) return _tryCb(callback);
 
             // TODO: maybe emit errors, so can handle even nested errors
 
@@ -140,7 +136,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
                 if (err3 === err2) console.error('microrest-router: unhandled post mw error', err3);
                 if (err1 && err2) console.error('microrest-router: double-fault: unhandled error from post mw', err2);
                 if (err3 !== err1 && err3 !== err2) console.error('microrest-router: double-fault: unhandled error in mw error handler', err3);
-                if (callback) process.nextTick(callback, err1 || err2 || err3 || null);
+                if (callback) _tryCb(callback, err1 || err2 || err3 || null);
 
                 // TODO: uncaughtException handling -- same as errors?
             })
