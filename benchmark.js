@@ -11,7 +11,7 @@ var qtimeit = require('qtimeit');
 
 var rest = require('./rest');
 // var mw = require('./mw');
-//var Router = require('./router');
+var Router = require('./router');
 
 var basePort = 1337;
 var frameworks = {
@@ -19,7 +19,7 @@ var frameworks = {
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
     restiq:  { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
     connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
-//    rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
+    rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
     rest_ha: { pkg: require('./'), ver: require('./package').version, port: 1347 },
     rest:    { pkg: require('./'), ver: require('./package').version, port: 1339 },
     http_buf: { pkg: require('http'), ver: process.version, port: 1344 },
