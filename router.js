@@ -69,7 +69,7 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
     // TODO: maybe match on path prefix, not the whole path (to let mw handle url param extraction)
 
     mw = this.maproutes[path] && (this.maproutes[path][method] || this.maproutes[path]['_ANY_']);
-    if (mw) return { mw: mw };                          // direct-mapped routes
+    if (mw) return mw;                                  // direct-mapped routes
 
     for (var i=0; i<this.rexroutes.length; i++) {
         var rex = this.rexroutes[i];
