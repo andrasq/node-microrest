@@ -89,7 +89,7 @@ module.exports = {
                 this.rest.onRequest(req, mockRes());
                 spy.restore();
                 t.ok(spy.called);
-                t.contains(spy.args[0][0], 'onError error: mock onError error');
+                t.contains(spy.args[0][0], 'mock onError error');
                 t.done();
             },
 

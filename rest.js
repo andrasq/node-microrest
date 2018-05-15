@@ -143,6 +143,7 @@ NanoRouter.prototype.getRoute = function getRoute( path, method ) {
 NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
     delete this.routes[path];
 }
+function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { console.error("%s -- microrest: exception in mw callback:", e) } }
 function _tryStep( fn, req, res, next ) { try { fn(req, res, next) } catch (err) { next(err) } }
 function _tryErrStep( fn, err, req, res, next ) { try { fn(err, req, res, next) } catch (err) { next(err) } }
 NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
@@ -157,7 +158,7 @@ NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
     }) })
     function runError(err) { err3 = err; err = err1 || err2 || err3; err ? _tryErrStep(self.routes.err, err, req, res, runFinally) : runFinally() }
     function runFinally(err) { _tryStep(self.routes.post, req, res, returnNextTick) }
-    function returnNextTick(err) { err4 = err; process.nextTick(next, err1 || err2 || err3 || err4) }
+    function returnNextTick(err) { err4 = err; _tryCb(next, (err1 || err2 || err3 || err4)) }
 }
 
 
@@ -175,10 +176,11 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
         })
     }
     function returnError(err) {
-        try { if (err) self.onError(err, req, res, function(e3){ }); if (next) process.nextTick(next) }
-        catch (e2) { next ? process.nextTick(next, e2) : console.error('%s -- microrest: onError error:', new Date().toISOString(), e2) }
+        try { if (err) self.onError(err, req, res, function(e3) { if (e3) _reportErrError(e3, 'returned error'); if (next) next() }) }
+        catch (e2) { next ? _tryCb(next, e2) : _reportErrError(e2, 'threw') }
     }
 }
+function _reportErrError(err, cause) { if (err) console.error('%s -- microrest: onError %s:', new Date().toISOString(), cause, err) }
 
 Rest.prototype.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
