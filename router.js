@@ -39,22 +39,19 @@ Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel )
         if (typeof mwSteps[i] !== 'function') throw new Error('mw step [' + i + '] not a function');
     }
 
-    if (path[0] === '/') {
-        if (path.indexOf('/:') < 0) {
-            this.maproutes[path] = this.maproutes[path] || {};
-            this.maproutes[path][method] = this.steps.use.concat(mwSteps);
-        } else {
-            var rex = this.rexmap[path] = this.rexmap[path] || { path: path, regex: null, names: {}, methods: {} };
-            if (!rex.regex) this.makeCapturingRegex(rex, path);
-            rex.methods[method] = this.steps.use.concat(mwSteps);
-            // new route overrides previous
-            this.rexroutes.unshift(rex);
-        }
-    }
-    else if (this.steps[path]) {
+    if (this.steps[path]) {
         this.steps[path] = this.steps[path].concat(mwSteps);
     }
-    else throw new Error(path + ': invalid mw mount path');
+    else if (path[0] === '/' && path.indexOf('/:') >= 0) {
+        var rex = this.rexmap[path] = this.rexmap[path] || { path: path, regex: null, names: {}, methods: {} };
+        if (!rex.regex) this.makeCapturingRegex(rex, path);
+        rex.methods[method] = [].concat(this.steps.use, mwSteps);
+        this.rexroutes.unshift(rex);
+    }
+    else {
+        if (!this.maproutes[path]) this.maproutes[path] = {};
+        this.maproutes[path][method] = this.steps.use.concat(mwSteps);
+    }
 }
 
 Router.prototype.deleteRoute = function deleteRoute( path, method ) {

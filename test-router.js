@@ -58,12 +58,9 @@ module.exports = {
                 t.done();
             },
 
-            'should reject invalid mount path': function(t) {
-                try { this.router.setRoute('badwhere', [this.fn1]). t.fail() }
-                catch (e) { t.contains(e.message, 'invalid mw mount path'); }
-                // should accept any route path:
-                //this.router.setRoute('anywhere', []);
-                //t.deepEqual(this.router.getRoute('anywhere'), []);
+            'should accept any route path': function(t) {
+                this.router.setRoute('anywhere', noop);
+                t.deepEqual(this.router.getRoute('anywhere'), [noop]);
                 t.done();
             },
 
