@@ -268,7 +268,7 @@ else {
     function runSuite() {
         console.log("AR: runSuite: req = %sB, res = %sB", request1.length, response1.length);
 
-        var cmdline = 'wrk -d2s -t2 -c8 http://localhost:%d/test1';
+        var cmdline = 'wrk -d2s -t2 -c8 http://localhost:%d/test1 | grep ^Requests/sec';
 
         if (0) {
             console.log("");
