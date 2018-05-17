@@ -201,7 +201,7 @@ else {
     var verifyResponse = true;
     var parallelCallCount = 100;
 
-    setTimeout(setupTests, 200);
+    setTimeout(setupTests, 400);
 
     function setupTests() {
         for (var name in frameworks) {
