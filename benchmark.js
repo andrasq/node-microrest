@@ -1,4 +1,4 @@
-// npm install microreq qtimeit restify express qrpc connect restiq
+// npm install microreq qtimeit restify@4 express qrpc connect restiq
 // wrk -d4s -t2 -c8 'http://localhost:1337/echo?a=1&b=2&c=3
 
 
@@ -280,7 +280,7 @@ else {
         }
         setTimeout(function() {
 
-            qtimeit.bench.timeGoal = .4;
+            qtimeit.bench.timeGoal = .1;
             qtimeit.bench.visualize = true;
             qtimeit.bench.showRunDetails = false;
             qtimeit.bench.opsPerTest = 100;     // 100 http calls per test
