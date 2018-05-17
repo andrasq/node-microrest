@@ -11,6 +11,7 @@
 
 var http = require('http');
 var https = require('https');
+var events = require('events');
 
 var rest = module.exports = createHandler;
 module.exports.Rest = Rest;
@@ -66,6 +67,12 @@ function createHandler( options ) {
     var handler = rest.onRequest;
     handler.rest = rest;
 
+    var emitter = handler.rest.emitter;
+    ['emit', 'on', 'once', 'removeListener', 'listeners'].forEach(function(name) {
+        handler[name] = function(a, b) { this.emitter[name](a, b) }
+        setFunctionName(handler[name], name);
+    })
+
     handler.use = useMw;
     function useRouter() { return rest.router ? rest.router : rest.router = new module.exports.NanoRouter() }
     function useMw(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
@@ -107,6 +114,8 @@ function sliceMwArgs( dest, args, offset ) {
 function Rest( options ) {
     options = options || {};
     var self = this;
+
+    this.emitter = new events.EventEmitter();
 
     this.encoding = options.encoding !== undefined ? options.encoding : 'utf8';
     this.router = options.router;
