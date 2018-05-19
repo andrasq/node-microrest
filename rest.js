@@ -155,11 +155,11 @@ NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
     var self = this, exc, err4, err5;
     _tryStep(self.routes.use, req, res, function(err1) {
         if (err1) return runError(err1);
-    _tryStep(self.routes.readBody, req, res, function(err2) {
-        if (err2) return runError(err2);
-    self.routes[req.url]
-        ? _tryStep(self.routes[req.url], req, res, runError)
-        : runError(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
+        _tryStep(self.routes.readBody, req, res, function(err2) {
+            if (err2) return runError(err2);
+            self.routes[req.url]
+                ? _tryStep(self.routes[req.url], req, res, runError)
+                : runError(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
     }) })
     function runError(err3) { (err3 && self.routes.err) ? _tryErrStep(self.routes.err, err3, req, res, runFinally) : runFinally(err3) }
     function runFinally(err) { if (err4 = err) _reportError(err, 'unhandled mw error'); _tryStep(self.routes.post, req, res, runReturn) }
