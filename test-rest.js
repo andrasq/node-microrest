@@ -83,7 +83,7 @@ module.exports = {
 
             'should catch onError error': function(t) {
                 var req = mockReq();
-                t.stub(req, 'setEncoding').throws('mock setEncoding error');
+                t.stub(this.rest, 'readBody').throws('mock readBody error');
                 t.stub(this.rest, 'onError').throws('mock onError error');
                 var spy = t.stub(process.stderr, 'write');
                 this.rest.onRequest(req, mockRes());
@@ -833,8 +833,7 @@ module.exports = {
 
         'runRoute should return readBody error': function(t) {
             var router = new rest.NanoRouter();
-            t.stub(router.routes, 'readBody').yields(null, '');
-            router.routes.readBody = function(req, res, next) { next('mock readBody error') };
+            t.stub(router.routes, 'readBody').yields('mock readBody error');
             router.setRoute('/path1', function(req, res, next) { next('mock use error') });
             router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
                 t.equal(err, 'mock readBody error');
@@ -883,6 +882,7 @@ function mockReq( opts ) {
 function mockRest( ) {
     var ee = new events.EventEmitter();
     ee.emitter = ee;
+    ee.readBody = function(req, res, next) { req.body = "mock body"; next() };
     return ee;
 }
 

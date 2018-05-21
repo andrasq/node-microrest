@@ -17,6 +17,7 @@ var rest = module.exports = createHandler;
 module.exports.Rest = Rest;
 Rest.HttpError = HttpError;
 Rest.NanoRouter = NanoRouter;
+Rest.readBody = readBody;
 module.exports.HttpError = HttpError;
 module.exports.NanoRouter = NanoRouter;
 module.exports.createServer = createServer;
@@ -126,7 +127,8 @@ function Rest( options ) {
         if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
         next(err2);
     };
-    // TODO: this.onFinally = options.onFinally || function(req, res, next) { next() };
+    ['processRequest', 'onError'].forEach(function(name) {
+        if (self[name] && typeof self[name] !== 'function') throw new Error(name + ' must be a function') });
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
     this.onRequest = function(req, res, next) { self._onRequest(req, res, next); }
@@ -152,7 +154,7 @@ NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
     delete this.routes[path];
 }
 NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
-    var self = this, exc, err4, err5;
+    var self = this, err4, err5;
     _tryStep(self.routes.use, req, res, function(err1) {
         if (err1) return runError(err1);
         _tryStep(self.routes.readBody, req, res, function(err2) {
@@ -167,7 +169,7 @@ NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
 }
 function _tryStep( fn, req, res, next ) { if (!fn) return next(); try { fn(req, res, next) } catch (e) { next(e) } }
 function _tryErrStep( fn, err, req, res, next ) {
-    try { fn(err, req, res, next) } catch (err2) { if (err2) _reportError(err2, 'error mw threw'); next(err) } }
+    try { fn(err, req, res, next) } catch (err2) { _reportError(err2, 'error mw threw'); next(err) } }
 function _tryCb( cb, err ) { try { cb(err) } catch (e) { _reportError(e, 'mw callback threw'); return e } }
 function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err) }
 function noop() {};
@@ -175,20 +177,16 @@ function noop() {};
 
 Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     var self = this;
-    next = next || noop;
-
-    (function(){ try { tryOnRequest(self, req, res) } catch (e) { _doReturn(e) } })();
-
-    function tryOnRequest( self, req, res ) {
-        req.setEncoding(self.encoding);
-        if (self.router) return self.router.runRoute(self, req, res, _doReturn);
-        self.readBody(req, res, function(err, body) {
-            if (err || !self.processRequest) return _doReturn(err || new rest.HttpError(500, 'no router or processRequest configured'));
-            try { self.processRequest(req, res, _doReturn, body); } catch (e) { _doReturn(e) }
+    try { req.setEncoding(self.encoding); (self.router)
+        ? self.router.runRoute(self, req, res, _doReturn)
+        : self.readBody(req, res, function(err, body) {
+            if (err || !self.processRequest) _doReturn(err || new rest.HttpError(500, 'no router or processRequest configured'));
+            else try { self.processRequest(req, res, _doReturn, body); } catch (e) { _doReturn(e) };
         })
-    }
+    } catch (e) { _doReturn(e) }
     function _doReturn(err) {
-        try { if (err) self.onError(err, req, res, function(e2) { _reportError(e2, 'onError returned error'); _tryCb(next, err) }); else _tryCb(next, err) }
+        if (!err || !self.onError) return next ? _tryCb(next) : null; if (!next) next = noop;
+        try { self.onError(err, req, res, function(e2) { _reportError(e2, 'onError returned error'); _tryCb(next, e2 ? err : null) }) }
         catch (e3) { _reportError(e3, 'onError threw'); _tryCb(next, err) }
     }
 }
