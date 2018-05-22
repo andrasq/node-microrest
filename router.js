@@ -28,6 +28,22 @@ function Router( options ) {
     this.readBody = options.readBody || mw.readBody;
     this.runMwSteps = options.runMwSteps || mw.runMwSteps;
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
+
+    var self = this;
+    // pre steps are always run, before call is routed
+    this.runPreSteps = function(req, res, next) { self.steps.pre.length ? self.runMwSteps(self.steps.pre, req, res, next) : next() };
+    // route if not already routed, read body if not already read
+    // TODO: do not auto-read the body, make some use() step read it
+    this.runRouteStep = function doRoute(req, res, next) {
+        req._route = req._route || self.getRoute(req.url, req.method);
+        if (!req._route) return next(mw.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
+        if (req._route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
+        (req.body !== undefined) ? next() : mw.mwReadBody(req, res, function(err, body) { next(err) });
+    };
+    // the call middleware stack includes the relevant 'use' and route steps
+    // use 'use' steps to parse the query string and body params
+    this.runMw = function(req, res, next) { self.runMwSteps(req._route.mw || req._route, req, res, next) };
+    this.mwSteps = [ this.runPreSteps, this.runRouteStep, this.runMw ];
 }
 
 Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel ) {
@@ -91,32 +107,10 @@ function _reportCbError(err) { mw.warn('microroute: runRoute cb threw:', err) }
 function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(e) } }
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var self = this;
-    var route;
-
-    var mwSteps = [
-        // pre steps are always run, before call is routed
-        function runPreRouteSetup(req, res, next) {
-            if (!self.steps.pre.length) return next();
-            self.runMwSteps(self.steps.pre, req, res, next);
-        },
-        function doRoute(req, res, next) {
-            route = req._route || self.getRoute(req.url, req.method);
-            route = self.getRoute(req.url, req.method);
-            if (!route) return next(mw.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
-            if (route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
-            // TODO: do not provide the body, make some use() step read it
-            (req.body !== undefined) ? next() : mw.mwReadBody(req, res, function(err, body) { next(err) });
-        },
-        // the call middleware stack includes the relevant 'use' and route steps
-        // use 'use' steps to parse the query string and body params
-        function runMw(req, res, next) {
-            self.runMwSteps(route.mw || route, req, res, next);
-        },
-    ];
-
-    self.runMwSteps(mwSteps, req, res, function(err1) {
+    self.runMwSteps(self.mwSteps, req, res, function(err1) {
         // post steps are always run, after middleware stack (even if error or call was not routed)
         if (!err1 && !self.steps.post.length) return _tryCb(callback);
+
         self.runMwSteps(self.steps.post, req, res, function(err2) {
             // TODO: if (req.body === undefined) req.resume();
             if (!err1 && !err2) return _tryCb(callback);
@@ -125,8 +119,8 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
 
             // error handlers are run if any mw step returned error
             self.runMwErrorSteps(self.steps.err, err1 || err2, req, res, function(err3) {
-                if (err3 === err1) console.error('microrest-router: unhandled mw error', err3);
-                if (err3 === err2) console.error('microrest-router: unhandled post mw error', err3);
+                if (err3 && err3 === err1) console.error('microrest-router: unhandled mw error', err3);
+                if (err3 && err3 === err2) console.error('microrest-router: unhandled post mw error', err3);
                 if (err1 && err2) console.error('microrest-router: double-fault: unhandled error from post mw', err2);
                 if (err3 !== err1 && err3 !== err2) console.error('microrest-router: double-fault: unhandled error in mw error handler', err3);
                 if (callback) _tryCb(callback, err1 || err2 || err3 || null);
