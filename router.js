@@ -104,14 +104,8 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
             route = self.getRoute(req.url, req.method);
             if (!route) return next(mw.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
             if (route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
-            //next();
-            (req.body !== undefined) ? next() : mw.readBody(req, res, function(err, body) { next(err) });
-        },
-        // TODO: do not provide the body, require that some use() step reads it!
-        function readBodyBeforeMw(req, res, next) {
-            // TODO: readBody should live in mw, but also needed by rest.js
-            (req.body !== undefined) ? next() : self.readBody(req, res, function(err, body) { next(err) });
-            // TODO: do not read body by default, let mw handle it
+            // TODO: do not provide the body, make some use() step read it
+            (req.body !== undefined) ? next() : mw.mwReadBody(req, res, function(err, body) { next(err) });
         },
         // the call middleware stack includes the relevant 'use' and route steps
         // use 'use' steps to parse the query string and body params
