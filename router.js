@@ -100,10 +100,12 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
             self.runMwSteps(self.steps.pre, req, res, next);
         },
         function doRoute(req, res, next) {
+            route = req._route || self.getRoute(req.url, req.method);
             route = self.getRoute(req.url, req.method);
-            if (!route) return next(rest.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
+            if (!route) return next(mw.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
             if (route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
-            next();
+            //next();
+            (req.body !== undefined) ? next() : self.readBody(req, res, function(err, body) { next(err) });
         },
         // TODO: do not provide the body, require that some use() step reads it!
         function readBodyBeforeMw(req, res, next) {
