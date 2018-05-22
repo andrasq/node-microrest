@@ -50,6 +50,15 @@ module.exports = {
             t.done();
         },
 
+        'should check that processRequest and onError are functions': function(t) {
+            // NOTE: assert.throws does not catch an error thrown inside a constructor, but try/catch does
+            // t.throws(function(){ new Rest({ processRequest: 1 }) }, /must be  a function/);
+            // t.throws(function(){ new Rest({ onError: 1 }) }, /must be  a function/);
+            try { new Rest({ processRequest: 1 }); t.fail() } catch (e) { }
+            try { new Rest({ onError: 1 }); t.fail() } catch (e) { }
+            t.done();
+        },
+
         'onRequest': {
             'should catch setEncoding error': function(t) {
                 var req = mockReq();
@@ -225,6 +234,17 @@ module.exports = {
                 t.contains(spy.args[0][0], 'mock end() error');
                 t.done();
             },
+
+            'should return an unhandled error to its callback': function(t) {
+                var rest = new Rest();
+                t.stubOnce(rest, 'readBody').yields(null, '');
+                rest.processRequest = function(req, res, next) { next('mock processRequest error') };
+                rest.onError = function(err, req, res, next) { next(err) };
+                rest._onRequest(mockReq({ url: '/path1' }), {}, function(err) {
+                    t.equal(err, 'mock processRequest error');
+                    t.done();
+                })
+            },
         },
     },
 
@@ -366,6 +386,25 @@ module.exports = {
             handler.listen(1234, noop);
             t.contains(spy.args[0][0], { port: 1234, rest: handler.rest });
             t.done();
+        },
+
+        'handler should be an event emitter': function(t) {
+            var handler = rest.createHandler();
+            handler.on('finishTest', noop);
+            handler.on('finishTest', onFinish);
+            t.deepEqual(handler.listeners('finishTest'), [noop, onFinish]);
+
+            handler.removeListener('finishTest', noop);
+            t.deepEqual(handler.listeners('finishTest'), [onFinish]);
+
+            handler.once('finishTest', noop);
+            t.equal(handler.listeners('finishTest').length, 2);
+
+            handler.emit('finishTest', 1235);
+            function onFinish(a) {
+                t.equal(a, 1235);
+                t.done();
+            }
         },
     },
 
@@ -820,11 +859,11 @@ module.exports = {
             })
         },
 
-        'runRoute should return mw error': function(t) {
+        'runRoute should return use error': function(t) {
             var router = new rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
+            router.setRoute('use', function(req, res, next) { next('mock use error') });
             router.setRoute('/path1', noopStep);
-            router.setRoute('/path1', function(req, res, next) { next('mock use error') });
             router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
                 t.equal(err, 'mock use error');
                 t.done();
@@ -841,12 +880,13 @@ module.exports = {
             })
         },
 
-        'runRoute should return mw error': function(t) {
+        'runRoute should catch err mw exception': function(t) {
             var router = new rest.NanoRouter();
-            t.stub(router.routes, 'readBody').yields(null, '');
-            router.setRoute('/path1', function(req, res, next) { next('mock mw error') });
+            t.stub(router.routes, 'readBody').yields('mock readBody error');
+            router.setRoute('/path1', function(req, res, next) { next('mock use error') });
+            router.setRoute('err', function(err, req, res, next) { throw 'mock err mw error' });
             router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
-                t.equal(err, 'mock mw error');
+                t.ok(err);
                 t.done();
             })
         },
@@ -855,9 +895,48 @@ module.exports = {
             var router = new rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('/path1', noopStep);
-            router.setRoute('use', function(req, res, next) { next('mock use error') });
+            router.setRoute('post', function(req, res, next) { next('mock finally error') });
             router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
-                t.equal(err, 'mock use error');
+                t.equal(err, 'mock finally error');
+                t.done();
+            })
+        },
+
+        'runRoute should catch finally mw exception': function(t) {
+            var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields('mock readBody error');
+            router.setRoute('/path1', function(req, res, next) { next('mock use error') });
+            router.setRoute('post', function(err, req, res, next) { throw 'mock post mw error' });
+            router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
+                t.ok(err);
+                t.done();
+            })
+        },
+
+        'runRoute should catch exception thrown by its callback': function(t) {
+            var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields('mock readBody error');
+            router.setRoute('/path1', noopStep);
+            var spy = t.spy(process.stderr, 'write');
+            router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
+                throw 'mock cb error';
+            })
+            setTimeout(function() {
+                spy.restore();
+                t.ok(spy.called);
+                t.contains(spy.args[0][0], 'unhandled mw error');
+                t.contains(spy.args[1][0], 'mw callback threw');
+                t.done();
+            }, 5);
+        },
+
+        'runRoute should return the unhandled error to its callback': function(t) {
+            var router = new rest.NanoRouter();
+            t.stub(router.routes, 'readBody').yields(null, '');
+            router.setRoute('/path1', noopStep);
+            router.setRoute('post', function(req, res, next) { next('mock finally error') });
+            router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
+                t.equal(err, 'mock finally error');
                 t.done();
             })
         },

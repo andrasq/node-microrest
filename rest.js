@@ -70,7 +70,7 @@ function createHandler( options ) {
 
     var emitter = handler.rest.emitter;
     ['emit', 'on', 'once', 'removeListener', 'listeners'].forEach(function(name) {
-        handler[name] = function(a, b) { this.emitter[name](a, b) }
+        handler[name] = function(a, b) { return this.rest.emitter[name](a, b) }
         setFunctionName(handler[name], name);
     })
 
@@ -154,7 +154,7 @@ NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
     delete this.routes[path];
 }
 NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
-    var self = this, err4, err5;
+    var self = this, err3, err4, err5;
     _tryStep(self.routes.use, req, res, function(err1) {
         if (err1) return runError(err1);
         _tryStep(self.routes.readBody, req, res, function(err2) {
@@ -163,9 +163,9 @@ NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
                 ? _tryStep(self.routes[req.url], req, res, runError)
                 : runError(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
     }) })
-    function runError(err3) { (err3 && self.routes.err) ? _tryErrStep(self.routes.err, err3, req, res, runFinally) : runFinally(err3) }
+    function runError(err) { ((err3 = err) && self.routes.err) ? _tryErrStep(self.routes.err, err3, req, res, runFinally) : runFinally(err3) }
     function runFinally(err) { if (err4 = err) _reportError(err, 'unhandled mw error'); _tryStep(self.routes.post, req, res, runReturn) }
-    function runReturn(err) { if (err5 = err) _reportError(err, 'post mw unhandled error'); _tryCb(next, err4 || err5) }
+    function runReturn(err) { if ((err5 = err) && err5 !== err3 && err5 !== err4) _reportError(err, 'post mw unhandled error'); _tryCb(next, err4 || err5) }
 }
 function _tryStep( fn, req, res, next ) { if (!fn) return next(); try { fn(req, res, next) } catch (e) { next(e) } }
 function _tryErrStep( fn, err, req, res, next ) {
