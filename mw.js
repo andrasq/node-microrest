@@ -55,15 +55,14 @@ function repeatUntil( loop, arg, testStop, callback ) {
 }
 function _testRepeatUntilDone(err, done) { return err || done; }
 function _tryCall(func, cb, arg) { try { func(cb, arg) } catch (err) { cb(err) } }
-function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
-function _testMwStepsDone(err, done) { return err || done || err === false; }
-function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 
 // run the middleware stack until one returns next(err) or next(false)
 function runMwSteps( steps, req, res, callback ) {
     var context = { ix: 0, steps: steps, req: req, res: res };
     repeatUntil(_runOneMwStep, context, _testMwStepsDone, callback);
 }
+function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
+function _testMwStepsDone(err, done) { return err || done || err === false; }
 
 // pass err to each error handler until one of them succeeds
 // A handler can decline the error (return it back) or can itself error out (return different error)
@@ -75,6 +74,7 @@ function runMwErrorSteps( steps, err, req, res, callback ) {
         function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
     }
 }
+function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 
 // simple query string parser
 // handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]
