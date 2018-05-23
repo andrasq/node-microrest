@@ -10,12 +10,13 @@ var microreq = require('microreq');
 var qtimeit = require('qtimeit');
 
 var rest = require('./rest');
-// var mw = require('./mw');
+var mw = require('./mw');
 var Router = require('./router');
 
 var basePort = 1337;
 var frameworks = {
-    restify: { pkg: require('restify'), ver: require('restify/package').version, port: 1337 },
+    // running restify alongside the others cuts 10-15% off their results
+    //restify: { pkg: require('restify'), ver: require('restify/package').version, port: 1337 },
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
     restiq:  { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
     connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
@@ -52,6 +53,9 @@ if (cluster.isMaster) {
             next();
         })
     }
+    function handleError( err, req, res, next ) {
+        next();
+    }
 
     if (frameworks.restify) {
         // 13.8k/s 259us
@@ -86,7 +90,8 @@ if (cluster.isMaster) {
     if (frameworks.connect) {
         // 44.5k/s 85us
         servers.connect = frameworks.connect.pkg();
-        servers.express.use(readBody);
+        servers.connect.use(readBody);
+        servers.connect.use(handleError);
         servers.connect.use(path1, function(req, res, next) { res.end(response1); next(); })
         http.createServer(servers.connect).listen(frameworks.connect.port);
     }
@@ -251,7 +256,7 @@ else {
             function onBack(err, res, body) {
                 doVerifyResponse(err, arguments[responseIndex]);
                 if (++ndone === ncalls) {
-                    process.nextTick(callback);
+                    setImmediate(callback);
                 }
             }
         }
@@ -268,16 +273,17 @@ else {
     function runSuite() {
         console.log("AR: runSuite: req = %sB, res = %sB", request1.length, response1.length);
 
-        var cmdline = 'wrk -d2s -t2 -c8 http://localhost:%d/test1 | grep ^Requests/sec';
+        var cmdline = 'wrk -d1s -t2 -c8 http://localhost:%d/test1 | grep ^Requests/sec';
 
-        if (0) {
+        if (1) {
             console.log("");
             for (var name in frameworks) {
                 var cmd = util.format(cmdline, frameworks[name].port);
                 console.log("# %s %s", name, cmd);
-                if (name !== 'qrpc') console.log(String(child_process.execSync(cmd)));
+                if (name !== 'qrpc') console.log(String(child_process.execSync(cmd)) + String(child_process.execSync(cmd)));
             }
         }
+
         setTimeout(function() {
 
             qtimeit.bench.timeGoal = .1;
