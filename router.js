@@ -16,16 +16,15 @@ function Router( options ) {
     this.steps = {
         pre: new Array(),
         use: new Array(),
-        post: new Array(),
         err: new Array(),
-// TODO: run post as a finally step, after error handling
+        post: new Array(),
 // TODO: support only 'use', path, 'err', and 'finally' steps
 // TODO: handle uncaughtException too
     };
     this.maproutes = {};                // direct lookup routes
     this.rexroutes = new Array();       // regex matched routes
     this.rexmap = {};                   // matched routes, by path
-    this.readBody = options.readBody || mw.readBody;
+    this.readBody = options.readBody || mw.mwReadBody;
     this.runMwSteps = options.runMwSteps || mw.runMwSteps;
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
 
@@ -38,7 +37,7 @@ function Router( options ) {
         req._route = req._route || self.getRoute(req.url, req.method);
         if (!req._route) return next(mw.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
         if (req._route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
-        (req.body !== undefined) ? next() : mw.mwReadBody(req, res, function(err, body) { next(err) });
+        (req.body !== undefined) ? next() : self.readBody(req, res, function(err, body) { next(err) });
     };
     // the call middleware stack includes the relevant 'use' and route steps
     // use 'use' steps to parse the query string and body params
@@ -71,6 +70,7 @@ Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel )
 }
 
 Router.prototype.deleteRoute = function deleteRoute( path, method ) {
+    if (this.steps[path]) this.steps[path] = new Array();
     if (this.maproutes[path]) delete this.maproutes[path][method];
     if (this.rexmap[path]) delete this.rexmap[path].methods[method];
 }
@@ -87,15 +87,13 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
     mw = this.maproutes[path] && (this.maproutes[path][method] || this.maproutes[path]['_ANY_']);
     if (mw) return mw;                                  // direct-mapped routes
 
-    for (var i=0; i<this.rexroutes.length; i++) {
+    for (var i=0; i<this.rexroutes.length; i++) {       // regex-mapped routes
         var rex = this.rexroutes[i];
         var match = rex.regex.exec(path);
         if (match && (mw = (rex.methods[method] || rex.methods['_ANY_']))) {
-            //return { mw: mw, match: match, names: rex.names }
-            var route = { mw: mw, params: {} };
+            var route = { mw: mw, params: {}, path: rex.path };
             for (var name in rex.names) route.params[name] = match[rex.names[name]];
-            //route.path = rex.path;
-            return route;                               // regex-mapped routes
+            return route;
         }
     }
 
@@ -105,26 +103,24 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
 // apply the steps defined for the route to the http request
 function _reportCbError(err) { mw.warn('microroute: runRoute cb threw:', err) }
 function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(e) } }
+function _reportError(err, msg) { console.error('%s -- microrest-router: %s:', new Date().toISOString(), msg, err) }
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var self = this;
+
+    // run the use steps, routing, and the route-specific middleware stack
     self.runMwSteps(self.mwSteps, req, res, function(err1) {
-        // post steps are always run, after middleware stack (even if error or call was not routed)
         if (!err1 && !self.steps.post.length) return _tryCb(callback);
+        if (err1 && !self.steps.err && !callback) _reportError(err1, 'unhandled mw error');
+        // TODO: if (req.body === undefined) req.resume();
 
-        self.runMwSteps(self.steps.post, req, res, function(err2) {
-            // TODO: if (req.body === undefined) req.resume();
-            if (!err1 && !err2) return _tryCb(callback);
+        // error handlers are run to handle any errors so far
+        self.runMwErrorSteps(err1 ? self.steps.err : [], err1, req, res, function(err2) {
+            if (err2) err2 === err1 ? _reportError(err1, 'unhandled mw error') : _reportError(err2, 'error-mw error');
 
-            // TODO: maybe emit errors, so can handle even nested errors
-
-            // error handlers are run if any mw step returned error
-            self.runMwErrorSteps(self.steps.err, err1 || err2, req, res, function(err3) {
-                if (err3 && err3 === err1) console.error('microrest-router: unhandled mw error', err3);
-                if (err3 && err3 === err2) console.error('microrest-router: unhandled post mw error', err3);
-                if (err1 && err2) console.error('microrest-router: double-fault: unhandled error from post mw', err2);
-                if (err3 !== err1 && err3 !== err2) console.error('microrest-router: double-fault: unhandled error in mw error handler', err3);
-                if (callback) _tryCb(callback, err1 || err2 || err3 || null);
-
+            // post steps are always run, after mw stack and error handler
+            self.runMwSteps(self.steps.post, req, res, function(err3) {
+                if (err3 && err1) _reportError(err3, 'post-mw error');
+                _tryCb(callback, err1 || err3 || null);
                 // TODO: uncaughtException handling -- same as errors?
             })
         })

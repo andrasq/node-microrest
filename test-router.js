@@ -27,7 +27,7 @@ module.exports = {
         'should return regex route': function(t) {
             this.router.setRoute('/:name1/:name2/other', this.fn2);
             var route = this.router.getRoute('/test/path/other');
-            t.deepEqual(route, { mw: [this.fn2], params: { name1: 'test', name2: 'path' } });
+            t.contains(route, { mw: [this.fn2], params: { name1: 'test', name2: 'path' } });
             t.done();
         },
 
@@ -204,45 +204,220 @@ module.exports = {
     },
 
     'runRoute': {
-        'should run all steps': function(t) {
-            var calls = [];
-            this.router.setRoute('pre', function(req, res, next) { calls.push('pre1'); next() });
-            this.router.setRoute('pre', function(req, res, next) { calls.push('pre2'); next() });
-            this.router.setRoute('use', function(req, res, next) { calls.push('use1'); next() });
-            this.router.setRoute('use', function(req, res, next) { calls.push('use2'); next() });
-            this.router.setRoute('/test/path', [function(req, res, next) { calls.push('path1'); next() }]);
-            this.router.setRoute('post', [function(req, res, next) { calls.push('post1'); next('test error') }]);
-            this.router.setRoute('post', [function(req, res, next) { calls.push('post2'); next() }]);
-            this.router.setRoute('err', function(err, req, res, next) { calls.push('err1'); next() });
-            this.router.setRoute('err', function(err, req, res, next) { calls.push('err2'); next() });
-            var rest = { readBody: function(req, res, next) { req.body = "mock body"; next() } };
-            var req = { url: '/test/path', method: 'GET', once: noop, on: noop, body: '' };
-            var res = {};
-            this.router.runRoute(rest, req, res, function(err) {
-                t.equal(err, 'test error');
-                t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'use2', 'path1', 'post1', 'err1']);
+        setUp: function(done) {
+            var calls = this.calls = [];
+            this.steps = {
+                pre1: function(req, res, next) { calls.push('pre1'); next() },
+                pre2: function(req, res, next) { calls.push('pre2'); next() },
+                use1: function(req, res, next) { calls.push('use1'); next() },
+                use2: function(req, res, next) { calls.push('use2'); next() },
+                path1: function(req, res, next) { calls.push('path1'); next() },
+                path2: function(req, res, next) { calls.push('path2'); next() },
+                err1: function(err, req, res, next) { calls.push('err1'); next(err) },
+                err2: function(err, req, res, next) { calls.push('err2'); next(err) },
+                post1: function(req, res, next) { calls.push('post1'); next() },
+                post2: function(req, res, next) { calls.push('post2'); next() },
+            };
+            this.installRoutes = function() {
+                this.router.setRoute('pre', this.steps.pre1);
+                this.router.setRoute('pre', this.steps.pre2);
+                this.router.setRoute('use', this.steps.use1);
+                this.router.setRoute('use', this.steps.use2);
+                this.router.setRoute('/test/path', [this.steps.path1, this.steps.path2]);
+                this.router.setRoute('err', this.steps.err1);
+                this.router.setRoute('err', this.steps.err2);
+                this.router.setRoute('post', this.steps.post1);
+                this.router.setRoute('post', this.steps.post2);
+            }
+            this.req = { url: '/test/path', method: 'GET', once: noop, on: noop, body: '' };
+            done();
+        },
+
+        'should skip err steps if no error': function(t) {
+            var calls = this.calls;
+            this.installRoutes();
+            this.router.runRoute({}, this.req, {}, function(err) {
+                t.ok(!err);
+                t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'use2', 'path1', 'path2', 'post1', 'post2']);
                 t.done();
             })
         },
 
-        'should catch error in use step': function(t) {
-t.skip();
+        'should stop mw on false': function(t) {
+            var calls = this.calls;
+            this.steps.use1 = function(req, res, next) { calls.push('use1'); next(false) };
+            this.installRoutes();
+            this.router.runRoute({}, this.req, {}, function(err) {
+                t.ok(!err);
+                t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'post1', 'post2']);
+                t.done();
+            })
         },
 
-        'should catch error in mw step': function(t) {
-t.skip();
+        'should return error for unmapped path': function(t) {
+            this.router.runRoute({}, this.req, {}, function(err) {
+                t.ok(err);
+                t.equal(err.statusCode, 404);
+                t.equal(err.message, '404 Not Found');
+                t.done();
+            })
         },
 
-        'should catch error in mw callback': function(t) {
-t.skip();
+        'should omit missing mw steps': function(t) {
+            var calls = this.calls;
+            this.router.setRoute('/test/path', [this.steps.path1, this.steps.path2]);
+            this.router.runRoute({}, this.req, {}, function(err) {
+                t.deepEqual(calls, ['path1', 'path2']);
+                t.done();
+            })
         },
 
-        'mw should stop on error': function(t) {
-t.skip();
+        'should run use steps that existed when path was routed': function(t) {
+            var calls = this.calls;
+            this.router.setRoute('use', this.steps.use1);
+            this.router.setRoute('/test/path', this.steps.path1);
+            this.router.setRoute('use', this.steps.use2);
+            this.router.runRoute({}, this.req, {}, function(err) {
+                t.deepEqual(calls, ['use1', 'path1']);
+                t.done();
+            })
         },
 
-        'mw should stop on false': function(t) {
-t.skip();
+
+        'returned mw errors': {
+
+            'should return error from pre step': function(t) {
+                var calls = this.calls;
+                this.steps.pre1 = function(req, res, next) { calls.push('pre1'); next('mock pre error') };
+                this.installRoutes();
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.equal(err, 'mock pre error');
+                    t.deepEqual(calls, ['pre1', 'err1', 'err2', 'post1', 'post2']);
+                    t.done();
+                })
+            },
+
+            'should return error from use step': function(t) {
+                var calls = this.calls;
+                this.steps.use1 = function(req, res, next) { calls.push('use1'); next('mock use error') };
+                this.installRoutes();
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.equal(err, 'mock use error');
+                    t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'err1', 'err2', 'post1', 'post2']);
+                    t.done();
+                })
+            },
+
+            'should return error from route mw': function(t) {
+                var calls = this.calls;
+                this.steps.path1 = function(req, res, next) { calls.push('path1'); next('mock route error') };
+                this.installRoutes();
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.equal(err, 'mock route error');
+                    t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'use2', 'path1', 'err1', 'err2', 'post1', 'post2']);
+                    t.done();
+                })
+            },
+
+            'should return error from post step': function(t) {
+                var calls = this.calls;
+                this.steps.post1 = function(req, res, next) { calls.push('post1'); next('mock post error') };
+                this.installRoutes();
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.equal(err, 'mock post error');
+                    t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'use2', 'path1', 'path2', 'post1']);
+                    t.done();
+                })
+            },
+
+            'should report error from err step': function(t) {
+                var calls = this.calls;
+                this.steps.use1 = function(req, res, next) { calls.push('use1'); next('mock use error') };
+                this.steps.err1 = function(err, req, res, next) { calls.push('err1'); next('mock err error 1') };
+                this.steps.err2 = function(err, req, res, next) { calls.push('err2'); next('mock err error 2') };
+                this.installRoutes();
+                var spy = t.spy(process.stderr, 'write');
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    spy.restore();
+                    t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'err1', 'err2', 'post1', 'post2']);
+                    t.contains(spy.args[0][0], 'mock err error 1');
+                    t.contains(spy.args[1][0], 'mock err error 2');
+                    t.done();
+                })
+            },
+        },
+
+        'mw exceptions': {
+
+            'should return error from pre step': function(t) {
+                var calls = this.calls;
+                this.steps.pre1 = function(req, res, next) { calls.push('pre1'); throw ('mock pre error') };
+                this.installRoutes();
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.equal(err, 'mock pre error');
+                    t.deepEqual(calls, ['pre1', 'err1', 'err2', 'post1', 'post2']);
+                    t.done();
+                })
+            },
+
+            'should return error from use step': function(t) {
+                var calls = this.calls;
+                this.steps.use1 = function(req, res, next) { calls.push('use1'); throw ('mock use error') };
+                this.installRoutes();
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.equal(err, 'mock use error');
+                    t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'err1', 'err2', 'post1', 'post2']);
+                    t.done();
+                })
+            },
+
+            'should return error from route mw': function(t) {
+                var calls = this.calls;
+                this.steps.path1 = function(req, res, next) { calls.push('path1'); throw ('mock route error') };
+                this.installRoutes();
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.equal(err, 'mock route error');
+                    t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'use2', 'path1', 'err1', 'err2', 'post1', 'post2']);
+                    t.done();
+                })
+            },
+
+            'should return error from post step': function(t) {
+                var calls = this.calls;
+                this.steps.post1 = function(req, res, next) { calls.push('post1'); throw ('mock post error') };
+                this.installRoutes();
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.equal(err, 'mock post error');
+                    t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'use2', 'path1', 'path2', 'post1']);
+                    t.done();
+                })
+            },
+
+            'should report error from err step': function(t) {
+                var calls = this.calls;
+                this.steps.use1 = function(req, res, next) { calls.push('use1'); next('mock use error') };
+                this.steps.err1 = function(err, req, res, next) { calls.push('err1'); throw ('mock err error 1') };
+                this.steps.err2 = function(err, req, res, next) { calls.push('err2'); throw ('mock err error 2') };
+                this.installRoutes();
+                var spy = t.spy(process.stderr, 'write');
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    spy.restore();
+                    t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'err1', 'err2', 'post1', 'post2']);
+                    t.contains(spy.args[0][0], 'mock err error 1');
+                    t.contains(spy.args[1][0], 'mock err error 2');
+                    t.done();
+                })
+            },
+        },
+
+        'should catch exception in mw callback': function(t) {
+            this.installRoutes();
+            this.router.runRoute({}, this.req, {}, function(err) {
+                throw 'error in callback';
+            })
+            setTimeout(function() {
+                t.done();
+            }, 2);
         },
     },
 }
