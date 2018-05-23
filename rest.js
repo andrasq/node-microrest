@@ -185,9 +185,9 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
         })
     } catch (e) { _doReturn(e) }
     function _doReturn(err) {
-        if (!err || !self.onError) return next ? _tryCb(next) : null; if (!next) next = noop;
-        try { self.onError(err, req, res, function(e2) { _reportError(e2, 'onError returned error'); _tryCb(next, e2 ? err : null) }) }
-        catch (e3) { _reportError(e3, 'onError threw'); _tryCb(next, err) }
+        if (!err || !self.onError) return next ? _tryCb(next, err) : null;
+        try { self.onError(err, req, res, function(e2) { _reportError(e2, 'onError returned error'); _tryCb(next || noop, e2 ? err : null) }) }
+        catch (e3) { _reportError(e3, 'onError threw'); _tryCb(next || noop, err) }
     }
 }
 
