@@ -93,7 +93,7 @@ function createHandler( options ) {
 
     return handler;
 }
-function setFunctionName( fn, name ) { fn = Object.defineProperty(fn, 'name', { writable: true }); fn.name = name; return fn; }
+function setFunctionName( fn, name ) { fn = Object.defineProperty(fn, 'name', { value: name }); return fn; }
 
 // ----------------------------------------------------------------
 
