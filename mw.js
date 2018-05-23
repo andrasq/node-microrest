@@ -64,6 +64,12 @@ function runMwSteps( steps, req, res, callback ) {
 function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
 function _testMwStepsDone(err, done) { return err || done || err === false; }
 
+function runMwStepsWithArg( steps, arg, req, res, callback ) {
+    var context = { ix: 0, steps: steps, req: req, res: res, arg: arg };
+    repeatUntil(_runOneMwStepWithArg, context, _testMwStepsDone, callback);
+}
+function _runOneMwStepWithArg(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.arg, ctx.req, ctx.res, next) : next(null, 'done') }
+
 // pass err to each error handler until one of them succeeds
 // A handler can decline the error (return it back) or can itself error out (return different error)
 function runMwErrorSteps( steps, err, req, res, callback ) {
