@@ -68,6 +68,10 @@ function runMwStepsWithArg( steps, arg, req, res, callback, invokeCallback ) {
     var context = { ix: 0, steps: steps, req: req, res: res, callback: callback, arg: arg };
     repeatUntil(_runOneMwStep, context, _testMwStepsDone, invokeCallback || _callbackWithArg);
 }
+// TODO: use this one:
+function runMwStepsContext( ctx, next ) {
+    repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, _callbackWithArg);
+}
 
 // pass err to each error handler until one of them succeeds
 // A handler can decline the error (return it back) or can itself error out (return different error)

@@ -31,22 +31,6 @@ function Router( options ) {
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
     this.runMwStepsWithArg = options.runMwStepsWithArg || mw.runMwStepsWithArg;
     this.runMwErrorStepsWithArg = options.runMwErrorStepsWithArg || mw.runMwErrorStepsWithArg;
-
-    var self = this;
-    // pre steps are always run, before call is routed
-    this.runPreSteps = function(req, res, next) { self.steps.pre.length ? self.runMwSteps(self.steps.pre, req, res, next) : next() };
-    // route if not already routed, read body if not already read
-    // TODO: do not auto-read the body, make some use() step read it
-    this.doRouteStep = function doRoute(req, res, next) {
-        req._route = req._route || self.getRoute(req.url, req.method);
-        if (!req._route) return next(self.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
-        if (req._route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
-        (req.body !== undefined) ? next() : self.readBody(req, res, function(err, body) { next(err) });
-    };
-    // the call middleware stack includes the relevant 'use' and route steps
-    // use 'use' steps to parse the query string and body params
-    this.runMw = function(req, res, next) { self.runMwSteps(req._route.mw || req._route, req, res, next) };
-    this.mwSteps = [ this.runPreSteps, this.doRouteStep, this.runMw ];
 }
 
 Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel ) {
@@ -109,10 +93,29 @@ function _reportCbError(err) { warn('microroute: runRoute cb threw:', err) }
 function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(e) } }
 function _reportError(err, msg) { console.error('%s -- microrest-router: %s:', new Date().toISOString(), msg, err) }
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
-    var context = { self: this, arg: null, req: req, res: res, callback: callback, err1: null, err2: null, _ix: 0, _steps: null };
-    this.runMwStepsWithArg(this.mwSteps, context, req, res, runErrorStepsWithArg);
+    var context = { self: this, req: req, res: res, callback: callback, err1: null, err2: null };
+    runMwChain(context);
 
-    function runErrorStepsWithArg(err1, ctx) {
+    function runMwChain(ctx) {
+        // pre steps are always run, before call is routed
+        ctx.self.runMwStepsWithArg(ctx.self.steps.pre, ctx, ctx.req, ctx.res, runDoRouteStep);
+    }
+    function runDoRouteStep(err, ctx) {
+        // route if not already routed, read body if not already read
+        if (err) return runErrorSteps(err, ctx);
+        ctx.req._route = ctx.req._route || ctx.self.getRoute(ctx.req.url, ctx.req.method);
+        if (!ctx.req._route) return ctx.callback(ctx.self.HttpError(ctx.self.NotRoutedHttpCode, ctx.req.method + ' ' + ctx.req.url + ': path not routed'));
+        if (ctx.req._route.params) { ctx.req.params = ctx.req.params || {}; for (var k in ctx.req._route.params) ctx.req.params[k] = ctx.req._route.params[k]; }
+        // auto-read the body if not already available
+        // TODO: do not auto-read, make a some mw step read the body
+// TODO: change readBody to return the context
+        (ctx.req.body !== undefined) ? runMwSteps(null, ctx) : ctx.self.readBody(ctx.req, ctx.res, function(err, body) { runMwSteps(err, ctx) });
+    }
+    function runMwSteps(err, ctx) {
+        // the call middleware stack includes the relevant 'use' and route steps
+        err ? runErrorSteps(err, ctx) : ctx.self.runMwStepsWithArg(req._route.mw || req._route, ctx, req, res, runErrorSteps);
+    }
+    function runErrorSteps(err1, ctx) {
         ctx.req.resume();
         if (!err1 && !ctx.self.steps.post.length) return _tryCb(ctx.callback);
         ctx.err1 = err1;
