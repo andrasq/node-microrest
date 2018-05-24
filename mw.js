@@ -78,10 +78,10 @@ function runMwErrorStepsWithArg( steps, arg, err, req, res, callback ) {
     var context = { ix: 0, steps: steps, err: err, req: req, res: res, callback: callback, arg: arg, next: null };
     repeatUntil(_tryEachErrorHandler, context, _testRepeatUntilDone, _callbackWithArg);
     function _tryEachErrorHandler(next, ctx) {
-        if (ctx.ix >= ctx.steps.length) return next(null, 'done'); else ctx.next = next;
-        try { ctx.steps[ctx.ix++](ctx.err, ctx.req, ctx.res, onNext) } catch (e) { onNext(e) }
+        if (ctx.ix >= ctx.steps.length) return next(null, 'done'); else { ctx.next = next; _tryStepContext(ctx, onNext); }
         function onNext(declined) { if (declined && declined !== ctx.err) _reportErrErr(declined); declined ? ctx.next() : ctx.next(null, 'done') }
     }
+    function _tryStepContext(ctx, cb) { try { ctx.steps[ctx.ix++](ctx.err, ctx.req, ctx.res, cb) } catch (e) { cb(e) } }
 }
 function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err) }
