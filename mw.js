@@ -10,9 +10,7 @@ var mw = module.exports = {
     HttpError: HttpError,
     repeatUntil: repeatUntil,
     runMwSteps: runMwSteps,
-    runMwStepsWithArg: runMwStepsWithArg,
     runMwErrorSteps: runMwErrorSteps,
-    runMwErrorStepsWithArg: runMwErrorStepsWithArg,
     parseQuery: parseQuery,
     sendResponse: sendResponse,
     mwReadBody: mwReadBody,
@@ -63,22 +61,18 @@ function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.
 function _testMwStepsDone(err, done) { return err || done || err === false; }
 function _callbackWithoutArg(err, ctx) { ctx.callback(err) }
 function _callbackWithArg(err, ctx) { ctx.callback(err, ctx.arg) }
-function runMwSteps( steps, req, res, callback ) { runMwStepsWithArg(steps, null, req, res, callback, _callbackWithoutArg); }
-function runMwStepsWithArg( steps, arg, req, res, callback, invokeCallback ) {
+function runMwSteps( steps, arg, req, res, callback, invokeCallback ) {
     var context = { ix: 0, steps: steps, req: req, res: res, callback: callback, arg: arg };
     repeatUntil(_runOneMwStep, context, _testMwStepsDone, invokeCallback || _callbackWithArg);
 }
 // TODO: use this one:
 function runMwStepsContext( ctx, next ) {
-    repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, _callbackWithArg);
+    repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, next);
 }
 
 // pass err to each error handler until one of them succeeds
 // A handler can decline the error (return it back) or can itself error out (return different error)
-function runMwErrorSteps( steps, err, req, res, callback ) {
-    runMwErrorStepsWithArg(steps, null, err, req, res, callback);
-}
-function runMwErrorStepsWithArg( steps, arg, err, req, res, callback ) {
+function runMwErrorSteps( steps, arg, err, req, res, callback ) {
     var context = { ix: 0, steps: steps, err: err, req: req, res: res, callback: callback, arg: arg, next: null };
     repeatUntil(_tryEachErrorHandler, context, _testRepeatUntilDone, _callbackWithArg);
     function _tryEachErrorHandler(next, ctx) {
@@ -88,7 +82,6 @@ function runMwErrorStepsWithArg( steps, arg, err, req, res, callback ) {
     function _tryStepContext(ctx, cb) { try { ctx.steps[ctx.ix++](ctx.err, ctx.req, ctx.res, cb) } catch (e) { cb(e) } }
 }
 function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
-function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err) }
 
 // simple query string parser
 // handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]

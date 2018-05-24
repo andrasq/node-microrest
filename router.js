@@ -29,8 +29,6 @@ function Router( options ) {
     this.readBody = options.readBody || mw.mwReadBody;
     this.runMwSteps = options.runMwSteps || mw.runMwSteps;
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
-    this.runMwStepsWithArg = options.runMwStepsWithArg || mw.runMwStepsWithArg;
-    this.runMwErrorStepsWithArg = options.runMwErrorStepsWithArg || mw.runMwErrorStepsWithArg;
 }
 
 Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel ) {
@@ -98,7 +96,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
 
     function runMwChain(ctx) {
         // pre steps are always run, before call is routed
-        ctx.self.runMwStepsWithArg(ctx.self.steps.pre, ctx, ctx.req, ctx.res, runDoRouteStep);
+        ctx.self.runMwSteps(ctx.self.steps.pre, ctx, ctx.req, ctx.res, runDoRouteStep);
     }
     function runDoRouteStep(err, ctx) {
         // route if not already routed, read body if not already read
@@ -113,21 +111,21 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     }
     function runMwSteps(err, ctx) {
         // the call middleware stack includes the relevant 'use' and route steps
-        err ? runErrorSteps(err, ctx) : ctx.self.runMwStepsWithArg(req._route.mw || req._route, ctx, req, res, runErrorSteps);
+        err ? runErrorSteps(err, ctx) : ctx.self.runMwSteps(req._route.mw || req._route, ctx, req, res, runErrorSteps);
     }
     function runErrorSteps(err1, ctx) {
         ctx.req.resume();
         if (!err1 && !ctx.self.steps.post.length) return _tryCb(ctx.callback);
         ctx.err1 = err1;
-        ctx.self.runMwErrorStepsWithArg(err1 ? ctx.self.steps.err : [], ctx, err1, ctx.req, ctx.res, runPostStepsWithArg);
+        ctx.self.runMwErrorSteps(err1 ? ctx.self.steps.err : [], ctx, err1, ctx.req, ctx.res, runPostSteps);
     }
     // post steps are always run, after mw stack and error handler
-    function runPostStepsWithArg(err2, ctx) {
+    function runPostSteps(err2, ctx) {
         if (err2 && err2 !== ctx.err1) _reportError(err2, 'error-mw error');
         ctx.err2 = err2;
-        ctx.self.runMwStepsWithArg(ctx.self.steps.post, ctx, ctx.req, ctx.res, runReturnStepWithArg);
+        ctx.self.runMwSteps(ctx.self.steps.post, ctx, ctx.req, ctx.res, runReturnStep);
     }
-    function runReturnStepWithArg(err3, ctx) {
+    function runReturnStep(err3, ctx) {
         if (err3 && ctx.err1) _reportError(err3, 'post-mw error');
         _tryCb(ctx.callback, ctx.err1 || err3 || null);
     }
