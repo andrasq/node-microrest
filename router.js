@@ -34,7 +34,7 @@ function Router( options ) {
 
     var self = this;
     // pre steps are always run, before call is routed
-    this.runPreSteps = function(req, res, next) { self.steps.pre.length ? self.runMwStepsWithArg(self.steps.pre, null, req, res, next) : next() };
+    this.runPreSteps = function(req, res, next) { self.steps.pre.length ? self.runMwSteps(self.steps.pre, req, res, next) : next() };
     // route if not already routed, read body if not already read
     // TODO: do not auto-read the body, make some use() step read it
     this.doRouteStep = function doRoute(req, res, next) {
@@ -45,7 +45,7 @@ function Router( options ) {
     };
     // the call middleware stack includes the relevant 'use' and route steps
     // use 'use' steps to parse the query string and body params
-    this.runMw = function(req, res, next) { self.runMwStepsWithArg(req._route.mw || req._route, null, req, res, next) };
+    this.runMw = function(req, res, next) { self.runMwSteps(req._route.mw || req._route, req, res, next) };
     this.mwSteps = [ this.runPreSteps, this.doRouteStep, this.runMw ];
 }
 

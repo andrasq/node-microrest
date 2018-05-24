@@ -59,18 +59,14 @@ function _testRepeatUntilDone(err, done) { return err || done; }
 function _tryCall(func, cb, arg) { try { func(cb, arg) } catch (err) { cb(err) } }
 
 // run the middleware stack until one returns next(err) or next(false)
-function runMwSteps( steps, req, res, callback ) {
-    var context = { ix: 0, steps: steps, req: req, res: res, callback: callback, arg: null };
-    repeatUntil(_runOneMwStep, context, _testMwStepsDone, _callbackWithoutArg);
-}
 function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
 function _testMwStepsDone(err, done) { return err || done || err === false; }
 function _callbackWithoutArg(err, ctx) { ctx.callback(err) }
 function _callbackWithArg(err, ctx) { ctx.callback(err, ctx.arg) }
-function runMwStepsWithArg( steps, arg, req, res, callback ) {
-// TODO: combine with runMwSteps
+function runMwSteps( steps, req, res, callback ) { runMwStepsWithArg(steps, null, req, res, callback, _callbackWithoutArg); }
+function runMwStepsWithArg( steps, arg, req, res, callback, invokeCallback ) {
     var context = { ix: 0, steps: steps, req: req, res: res, callback: callback, arg: arg };
-    repeatUntil(_runOneMwStep, context, _testMwStepsDone, _callbackWithArg);
+    repeatUntil(_runOneMwStep, context, _testMwStepsDone, invokeCallback || _callbackWithArg);
 }
 
 // pass err to each error handler until one of them succeeds
@@ -78,8 +74,6 @@ function runMwStepsWithArg( steps, arg, req, res, callback ) {
 function runMwErrorSteps( steps, err, req, res, callback ) {
     runMwErrorStepsWithArg(steps, null, err, req, res, callback);
 }
-function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err) }
-function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 function runMwErrorStepsWithArg( steps, arg, err, req, res, callback ) {
     var context = { ix: 0, steps: steps, err: err, req: req, res: res, callback: callback, arg: arg, next: null };
     repeatUntil(_tryEachErrorHandler, context, _testRepeatUntilDone, _callbackWithArg);
@@ -89,6 +83,8 @@ function runMwErrorStepsWithArg( steps, arg, err, req, res, callback ) {
         function onNext(declined) { if (declined && declined !== ctx.err) _reportErrErr(declined); declined ? ctx.next() : ctx.next(null, 'done') }
     }
 }
+function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
+function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err) }
 
 // simple query string parser
 // handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]
