@@ -81,19 +81,7 @@ function runMwErrorSteps( steps, err, req, res, callback ) {
 function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err) }
 function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 function runMwErrorStepsWithArg( steps, arg, err, req, res, callback ) {
-///**
-    var ix = 0;
-    repeatUntil(tryEachHandler, arg, _testRepeatUntilDone, function(err) { callback(err, arg) });
-    function tryEachHandler(next, arg) {
-        try { return (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined) : next(null, 'done'); } catch (e) { nextIfDeclined(e) }
-// TODO: use context to avoid needing to bind to each next
-        function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
-    }
-return;
-/**/
-// TODO: something like...
-// FIXME: breaks...
-    var context = { ix: 0, steps: steps, err: err, req: req, res: res, callback: callback, arg: null, next: null };
+    var context = { ix: 0, steps: steps, err: err, req: req, res: res, callback: callback, arg: arg, next: null };
     repeatUntil(_tryEachErrorHandler, context, _testRepeatUntilDone, _callbackWithArg);
     function _tryEachErrorHandler(next, ctx) {
         if (ctx.ix >= ctx.steps.length) return next(null, 'done'); else ctx.next = next;
