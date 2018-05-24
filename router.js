@@ -111,22 +111,23 @@ function _reportError(err, msg) { console.error('%s -- microrest-router: %s:', n
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var context = { self: this, arg: null, req: req, res: res, callback: callback, err1: null, err2: null, _ix: 0, _steps: null };
     this.runMwStepsWithArg(this.mwSteps, context, req, res, runErrorStepsWithArg);
-}
-function runErrorStepsWithArg(err1, ctx) {
-    ctx.req.resume();
-    if (!err1 && !ctx.self.steps.post.length) return _tryCb(ctx.callback);
-    ctx.err1 = err1;
-    ctx.self.runMwErrorStepsWithArg(err1 ? ctx.self.steps.err : [], ctx, err1, ctx.req, ctx.res, runPostStepsWithArg);
-}
-// post steps are always run, after mw stack and error handler
-function runPostStepsWithArg(err2, ctx) {
-    if (err2 && err2 !== ctx.err1) _reportError(err2, 'error-mw error');
-    ctx.err2 = err2;
-    ctx.self.runMwStepsWithArg(ctx.self.steps.post, ctx, ctx.req, ctx.res, runReturnStepWithArg);
-}
-function runReturnStepWithArg(err3, ctx) {
-    if (err3 && ctx.err1) _reportError(err3, 'post-mw error');
-    _tryCb(ctx.callback, ctx.err1 || err3 || null);
+
+    function runErrorStepsWithArg(err1, ctx) {
+        ctx.req.resume();
+        if (!err1 && !ctx.self.steps.post.length) return _tryCb(ctx.callback);
+        ctx.err1 = err1;
+        ctx.self.runMwErrorStepsWithArg(err1 ? ctx.self.steps.err : [], ctx, err1, ctx.req, ctx.res, runPostStepsWithArg);
+    }
+    // post steps are always run, after mw stack and error handler
+    function runPostStepsWithArg(err2, ctx) {
+        if (err2 && err2 !== ctx.err1) _reportError(err2, 'error-mw error');
+        ctx.err2 = err2;
+        ctx.self.runMwStepsWithArg(ctx.self.steps.post, ctx, ctx.req, ctx.res, runReturnStepWithArg);
+    }
+    function runReturnStepWithArg(err3, ctx) {
+        if (err3 && ctx.err1) _reportError(err3, 'post-mw error');
+        _tryCb(ctx.callback, ctx.err1 || err3 || null);
+    }
 }
 
 Router.prototype.makeCapturingRegex = function makeCapturingRegex( rex, path ) {
