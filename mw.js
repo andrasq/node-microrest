@@ -48,11 +48,11 @@ function repeatUntil( loop, arg, testStop, callback ) {
         if (++returnCount > callCount) {
             // probably too late to return an error response, but at least warn
             mw.warn('mw callback already called');
-            return callback(new Error('mw callback already called'));
+            return callback(new Error('mw callback already called'), arg);
         }
-        else if (testStop(err, stop)) { return callback(err); }
+        else if (testStop(err, stop)) { return callback(err, arg); }
         else if (depth++ < 20) { callCount++; _tryCall(loop, _return, arg); }
-        else { depth = 0; callCount++; process.nextTick(_tryCall, loop, _return, arg); }
+        else { depth = 0; callCount++; process.nextTick(_tryCall, loop, _return); }
     }
 }
 function _testRepeatUntilDone(err, done) { return err || done; }
@@ -60,35 +60,45 @@ function _tryCall(func, cb, arg) { try { func(cb, arg) } catch (err) { cb(err) }
 
 // run the middleware stack until one returns next(err) or next(false)
 function runMwSteps( steps, req, res, callback ) {
-    var context = { ix: 0, steps: steps, req: req, res: res };
-    repeatUntil(_runOneMwStep, context, _testMwStepsDone, callback);
+    var context = { ix: 0, steps: steps, req: req, res: res, callback: callback, arg: null };
+    repeatUntil(_runOneMwStep, context, _testMwStepsDone, _callbackWithoutArg);
 }
 function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
 function _testMwStepsDone(err, done) { return err || done || err === false; }
+function _callbackWithoutArg(err, ctx) { ctx.callback(err) }
+function _callbackWithArg(err, ctx) { ctx.callback(err, ctx.arg) }
 function runMwStepsWithArg( steps, arg, req, res, callback ) {
 // TODO: combine with runMwSteps
-    var context = { ix: 0, steps: steps, req: req, res: res, arg: arg };
-    repeatUntil(_runOneMwStep, context, _testMwStepsDone, function(err) { callback(err, arg) });
+    var context = { ix: 0, steps: steps, req: req, res: res, callback: callback, arg: arg };
+    repeatUntil(_runOneMwStep, context, _testMwStepsDone, _callbackWithArg);
 }
 
 // pass err to each error handler until one of them succeeds
 // A handler can decline the error (return it back) or can itself error out (return different error)
 function runMwErrorSteps( steps, err, req, res, callback ) {
-return runMwErrorStepsWithArg(steps, null, err, req, res, callback);
-//    var ix = 0;
-//    repeatUntil(tryEachHandler, null, _testRepeatUntilDone, callback);
-//    function tryEachHandler(next) {
-//        try { return (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined) : next(null, 'done'); } catch (e) { nextIfDeclined(e) }
-//        function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
-//    }
+    runMwErrorStepsWithArg(steps, null, err, req, res, callback);
 }
+function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err) }
 function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 function runMwErrorStepsWithArg( steps, arg, err, req, res, callback ) {
+///**
     var ix = 0;
     repeatUntil(tryEachHandler, arg, _testRepeatUntilDone, function(err) { callback(err, arg) });
     function tryEachHandler(next, arg) {
         try { return (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined) : next(null, 'done'); } catch (e) { nextIfDeclined(e) }
+// TODO: use context to avoid needing to bind to each next
         function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
+    }
+return;
+/**/
+// TODO: something like...
+// FIXME: breaks...
+    var context = { ix: 0, steps: steps, err: err, req: req, res: res, callback: callback, arg: null, next: null };
+    repeatUntil(_tryEachErrorHandler, context, _testRepeatUntilDone, _callbackWithArg);
+    function _tryEachErrorHandler(next, ctx) {
+        if (ctx.ix >= ctx.steps.length) return next(null, 'done'); else ctx.next = next;
+        try { ctx.steps[ctx.ix++](ctx.err, ctx.req, ctx.res, onNext) } catch (e) { onNext(e) }
+        function onNext(declined) { if (declined && declined !== ctx.err) _reportErrErr(declined); declined ? ctx.next() : ctx.next(null, 'done') }
     }
 }
 

@@ -63,7 +63,7 @@ module.exports = {
             var spy = t.spy({}, 'fn', function(err) {
                 if (spy.callCount === 1) {
                     t.ifError(err);
-                    t.deepEqual(spy.args[0], [ null ]);
+                    t.strictEqual(spy.args[0][0], null);
                 }
                 if (spy.callCount === 2) {
                     t.ok(err);
