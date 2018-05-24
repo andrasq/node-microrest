@@ -10,7 +10,9 @@ var mw = module.exports = {
     HttpError: HttpError,
     repeatUntil: repeatUntil,
     runMwSteps: runMwSteps,
+    runMwStepsWithArg: runMwStepsWithArg,
     runMwErrorSteps: runMwErrorSteps,
+    runMwErrorStepsWithArg: runMwErrorStepsWithArg,
     parseQuery: parseQuery,
     sendResponse: sendResponse,
     mwReadBody: mwReadBody,
@@ -29,7 +31,7 @@ function HttpError( statusCode, debugMessage, details ) {
 }
 
 // print a warning to stderr
-function warn() {
+function warn( ) {
     var argv = new Array();
     for (var i=0; i<arguments.length; i++) argv.push(arguments[i]);
     console.warn("%s -- microrest: %s", new Date().toISOString(), util.format.apply(util, argv));
@@ -63,24 +65,32 @@ function runMwSteps( steps, req, res, callback ) {
 }
 function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
 function _testMwStepsDone(err, done) { return err || done || err === false; }
-
 function runMwStepsWithArg( steps, arg, req, res, callback ) {
+// TODO: combine with runMwSteps
     var context = { ix: 0, steps: steps, req: req, res: res, arg: arg };
-    repeatUntil(_runOneMwStepWithArg, context, _testMwStepsDone, callback);
+    repeatUntil(_runOneMwStep, context, _testMwStepsDone, function(err) { callback(err, arg) });
 }
-function _runOneMwStepWithArg(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.arg, ctx.req, ctx.res, next) : next(null, 'done') }
 
 // pass err to each error handler until one of them succeeds
 // A handler can decline the error (return it back) or can itself error out (return different error)
 function runMwErrorSteps( steps, err, req, res, callback ) {
+return runMwErrorStepsWithArg(steps, null, err, req, res, callback);
+//    var ix = 0;
+//    repeatUntil(tryEachHandler, null, _testRepeatUntilDone, callback);
+//    function tryEachHandler(next) {
+//        try { return (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined) : next(null, 'done'); } catch (e) { nextIfDeclined(e) }
+//        function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
+//    }
+}
+function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
+function runMwErrorStepsWithArg( steps, arg, err, req, res, callback ) {
     var ix = 0;
-    repeatUntil(tryEachHandler, null, _testRepeatUntilDone, callback);
-    function tryEachHandler(next) {
+    repeatUntil(tryEachHandler, arg, _testRepeatUntilDone, function(err) { callback(err, arg) });
+    function tryEachHandler(next, arg) {
         try { return (ix < steps.length) ? steps[ix++](err, req, res, nextIfDeclined) : next(null, 'done'); } catch (e) { nextIfDeclined(e) }
         function nextIfDeclined(declined) { if (declined && declined !== err) _reportErrErr(declined); declined ? next() : next(null, 'done') }
     }
 }
-function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 
 // simple query string parser
 // handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]
