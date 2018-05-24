@@ -229,7 +229,7 @@ module.exports = {
                 this.router.setRoute('post', this.steps.post1);
                 this.router.setRoute('post', this.steps.post2);
             }
-            this.req = { url: '/test/path', method: 'GET', once: noop, on: noop, body: '' };
+            this.req = { url: '/test/path', method: 'GET', once: noop, on: noop, body: '', resume: noop };
             done();
         },
 

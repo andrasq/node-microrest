@@ -9,6 +9,7 @@
 module.exports = Router;
 
 var mw = require('./mw');
+var warn = mw.warn;
 
 function Router( options ) {
     options = options || {};
@@ -24,9 +25,12 @@ function Router( options ) {
     this.maproutes = {};                // direct lookup routes
     this.rexroutes = new Array();       // regex matched routes
     this.rexmap = {};                   // matched routes, by path
+    this.HttpError = mw.HttpError;
     this.readBody = options.readBody || mw.mwReadBody;
     this.runMwSteps = options.runMwSteps || mw.runMwSteps;
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
+    this.runMwStepsWithArg = options.runMwStepsWithArg || mw.runMwStepsWithArg;
+    this.runMwErrorStepsWithArg = options.runMwErrorStepsWithArg || mw.runMwErrorStepsWithArg;
 
     var self = this;
     // pre steps are always run, before call is routed
@@ -35,7 +39,7 @@ function Router( options ) {
     // TODO: do not auto-read the body, make some use() step read it
     this.runRouteStep = function doRoute(req, res, next) {
         req._route = req._route || self.getRoute(req.url, req.method);
-        if (!req._route) return next(mw.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
+        if (!req._route) return next(self.HttpError(self.NotRoutedHttpCode, req.method + ' ' + req.url + ': path not routed'));
         if (req._route.params) { req.params = req.params || {}; for (var k in route.params) req.params[k] = route.params[k]; }
         (req.body !== undefined) ? next() : self.readBody(req, res, function(err, body) { next(err) });
     };
@@ -101,30 +105,28 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
 }
 
 // apply the steps defined for the route to the http request
-function _reportCbError(err) { mw.warn('microroute: runRoute cb threw:', err) }
+function _reportCbError(err) { warn('microroute: runRoute cb threw:', err) }
 function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(e) } }
 function _reportError(err, msg) { console.error('%s -- microrest-router: %s:', new Date().toISOString(), msg, err) }
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
-    var self = this;
-
-    // run the use steps, routing, and the route-specific middleware stack
-    self.runMwSteps(self.mwSteps, req, res, function(err1) {
-        if (!err1 && !self.steps.post.length) return _tryCb(callback);
-        if (err1 && !self.steps.err && !callback) _reportError(err1, 'unhandled mw error');
-        // TODO: if (req.body === undefined) req.resume();
-
-        // error handlers are run to handle any errors so far
-        self.runMwErrorSteps(err1 ? self.steps.err : [], err1, req, res, function(err2) {
-            if (err2) err2 === err1 ? _reportError(err1, 'unhandled mw error') : _reportError(err2, 'error-mw error');
-
-            // post steps are always run, after mw stack and error handler
-            self.runMwSteps(self.steps.post, req, res, function(err3) {
-                if (err3 && err1) _reportError(err3, 'post-mw error');
-                _tryCb(callback, err1 || err3 || null);
-                // TODO: uncaughtException handling -- same as errors?
-            })
-        })
-    })
+    var context = { self: this, arg: null, req: req, res: res, callback: callback, err1: null, err2: null, _ix: 0, _steps: null };
+    this.runMwStepsWithArg(this.mwSteps, context, req, res, runErrorStepsWithArg);
+}
+function runErrorStepsWithArg(err1, ctx) {
+    ctx.req.resume();
+    if (!err1 && !ctx.self.steps.post.length) return _tryCb(ctx.callback);
+    ctx.err1 = err1;
+    ctx.self.runMwErrorStepsWithArg(err1 ? ctx.self.steps.err : [], ctx, err1, ctx.req, ctx.res, runPostStepsWithArg);
+}
+// post steps are always run, after mw stack and error handler
+function runPostStepsWithArg(err2, ctx) {
+    if (err2 && err2 !== ctx.err1) _reportError(err2, 'error-mw error');
+    ctx.err2 = err2;
+    ctx.self.runMwStepsWithArg(ctx.self.steps.post, ctx, ctx.req, ctx.res, runReturnStepWithArg);
+}
+function runReturnStepWithArg(err3, ctx) {
+    if (err3 && ctx.err1) _reportError(err3, 'post-mw error');
+    _tryCb(ctx.callback, ctx.err1 || err3 || null);
 }
 
 Router.prototype.makeCapturingRegex = function makeCapturingRegex( rex, path ) {
