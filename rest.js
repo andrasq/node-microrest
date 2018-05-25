@@ -131,7 +131,8 @@ function Rest( options ) {
         if (self[name] && typeof self[name] !== 'function') throw new Error(name + ' must be a function') });
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
-    this.onRequest = function(req, res, next) { self._onRequest(req, res, next); }
+    this.onRequest = function(req, res, next) { setImmediate(_invokeOnRequest, req, res, next) }
+    function _invokeOnRequest(req, res, next) { self._onRequest(req, res, next) }
 }
 
 function NanoRouter( ) {

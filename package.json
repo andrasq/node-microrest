@@ -1,6 +1,6 @@
 {
   "name": "microrest",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "tiny embeddable REST web framework",
   "keywords": ["micro", "nano", "framework", "middleware", "embeddable", "fast"],
   "main": "rest.js",
