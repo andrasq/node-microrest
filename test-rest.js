@@ -65,18 +65,22 @@ module.exports = {
                 t.stub(req, 'setEncoding').throws('mock setEncoding error');
                 var spy = t.spy(this.rest, 'onError');
                 this.rest.onRequest(req, mockRes(), noop);
-                t.ok(spy.called);
-                t.equal(spy.args[0][0], 'mock setEncoding error');
-                t.done();
+                setImmediate(function() {
+                    t.ok(spy.called);
+                    t.equal(spy.args[0][0], 'mock setEncoding error');
+                    t.done();
+                })
             },
 
             'should catch readBody error': function(t) {
                 var spy = t.spy(this.rest, 'onError');
                 t.stub(this.rest, 'readBody').throws('mock readBody error');
                 this.rest.onRequest(mockReq(), mockRes(), noop);
-                t.ok(spy.called);
-                t.equal(spy.args[0][0], 'mock readBody error');
-                t.done();
+                setImmediate(function() {
+                    t.ok(spy.called);
+                    t.equal(spy.args[0][0], 'mock readBody error');
+                    t.done();
+                })
             },
 
             'should return readBody error': function(t) {
@@ -96,10 +100,12 @@ module.exports = {
                 t.stub(this.rest, 'onError').throws('mock onError error');
                 var spy = t.stub(process.stderr, 'write');
                 this.rest.onRequest(req, mockRes());
-                spy.restore();
-                t.ok(spy.called);
-                t.contains(spy.args[0][0], 'mock onError error');
-                t.done();
+                setImmediate(function() {
+                    spy.restore();
+                    t.ok(spy.called);
+                    t.contains(spy.args[0][0], 'mock onError error');
+                    t.done();
+                })
             },
 
             'without router': {
@@ -126,7 +132,7 @@ module.exports = {
                         t.ok(spy.called);
                         t.ok(spy.args[0][0].debug, 'no router or processRequest');
                         t.done();
-                    }, 3);
+                    }, 5);
                 },
 
                 'should pass processRequest exception to onError': function(t) {
@@ -181,8 +187,10 @@ module.exports = {
                     this.rest.router = new NonRouter();
                     var spy = t.stub(this.rest.router, 'runRoute').yields(null);
                     this.rest.onRequest(mockReq(), mockRes());
-                    t.ok(spy.called);
-                    t.done();
+                    setImmediate(function() {
+                        t.ok(spy.called);
+                        t.done();
+                    })
                 },
 
                 'should use configured encoding': function(t) {
@@ -190,9 +198,11 @@ module.exports = {
                     var req = mockReq();
                     var spy = t.spy(req, 'setEncoding');
                     rest.onRequest(req, mockRes());
-                    t.ok(spy.called);
-                    t.equal(spy.args[0][0], 'my-enc');
-                    t.done();
+                    setImmediate(function() {
+                        t.ok(spy.called);
+                        t.equal(spy.args[0][0], 'my-enc');
+                        t.done();
+                    })
                 },
 
                 'should catch runRoute errors': function(t) {
@@ -202,11 +212,13 @@ module.exports = {
                     var res = mockRes();
                     var spy3 = t.spy(res, 'end');
                     this.rest.onRequest(mockReq(), res);
-                    t.ok(spy.called);
-                    t.contains(spy.args[0][3], { debug: 'runRoute error' });
-                    t.ok(spy2.called);
-                    t.contains(spy3.args[0][0], '"debug":"runRoute error"');
-                    t.done();
+                    setImmediate(function() {
+                        t.ok(spy.called);
+                        t.contains(spy.args[0][3], { debug: 'runRoute error' });
+                        t.ok(spy2.called);
+                        t.contains(spy3.args[0][0], '"debug":"runRoute error"');
+                        t.done();
+                    })
                 },
 
                 'should return runRoute errors': function(t) {
@@ -256,7 +268,8 @@ module.exports = {
             t.equal(typeof handler.use, 'function');
             var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch', 'del' ];
             httpMethods.forEach(function(method){ t.equal(typeof handler[method], 'function') });
-            httpMethods.forEach(function(method){ if (method !== 'del') t.equal(handler[method].name, method) });
+            // node-v0.10 did not have a function.name property
+            if (process.version >= 'v1.') httpMethods.forEach(function(method){ if (method !== 'del') t.equal(handler[method].name, method) });
             t.done();
         },
 
@@ -486,15 +499,14 @@ module.exports = {
                 var netServer = net.createServer();
                 netServer.listen(1337, function() {
                     var server = rest.createServer({ port: 1337, anyPort: true });
-                    server.on('listening', function() {
+                    setTimeout(function() {
                         var port = server.address().port;
                         server.close();
                         netServer.close(function() {
                             t.ok(port > 0);
                             t.done();
                         })
-                    })
-                    server.listen(1337);
+                    }, 5);
                 })
             },
         },
@@ -745,7 +757,7 @@ module.exports = {
         'getRoute should return the mw steps or null': function(t) {
             var router = new rest.NanoRouter();
             router.setRoute('/path2', noop);
-            t.deepEqual(router.getRoute('/path0'), null);
+            t.equal(router.getRoute('/path0'), null);
             t.deepEqual(router.getRoute('/path2'), noop);
             t.done();
         },
@@ -758,7 +770,7 @@ module.exports = {
             t.deepEqual(router.getRoute('/path/name'), noop3);
             t.deepEqual(router.getRoute('/path/othername'), noop2);
             t.deepEqual(router.getRoute('/otherpath'), noop);
-            t.deepEqual(router.getRoute('withoutslash'), null);
+            t.equal(router.getRoute('withoutslash'), null);
             t.done();
         },
 
