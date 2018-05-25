@@ -121,7 +121,7 @@ module.exports = {
                         t.equal(typeof spy.args[0][2], 'function');
                         t.equal(spy.args[0][3], 'mock body');
                         t.done();
-                    }, 3);
+                    }, 5);
                 },
 
                 'should error out if no processRequest': function(t) {
