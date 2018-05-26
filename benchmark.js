@@ -40,6 +40,13 @@ if (cluster.isMaster) {
 
     var servers = {};
 
+    function noop(){}
+    function sendResponse( req, res, next ) {
+        //mw.sendResponse(req, res, noop, null, 200, response1, {});
+        mw.sendResponse(req, res, noop, null, 200, response1);
+        //res.end(response1);
+        next();
+    }
     function readBody( req, res, next ) {
         if (res.body !== undefined) return next();
 
@@ -86,7 +93,8 @@ if (cluster.isMaster) {
         servers.restiq.use(readBody);
         //servers.restiq.get(path1, function(req, res, next) { res.send(200, response1); next(); })
         // 38.7k/s w/ wrk
-        servers.restiq.get(path1, function(req, res, next) { res.end(response1); next(); })
+        //servers.restiq.get(path1, function(req, res, next) { res.end(response1); next(); })
+        servers.restiq.get(path1, sendResponse);
         // 42k/s w/ wrk
     }
 
@@ -95,7 +103,7 @@ if (cluster.isMaster) {
         servers.connect = frameworks.connect.pkg();
         servers.connect.use(readBody);
         servers.connect.use(handleError);
-        servers.connect.use(path1, function(req, res, next) { res.end(response1); next(); })
+        servers.connect.use(path1, sendResponse);
         http.createServer(servers.connect).listen(frameworks.connect.port);
     }
 
@@ -106,9 +114,9 @@ if (cluster.isMaster) {
         //servers.rest_mw._rest.router.setRoute('/test1', function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });
         // 43.3k/s (52k/s w/ wrk)
         servers.rest_mw._rest.router.setRoute('use', readBody);
-        servers.rest_mw._rest.router.setRoute('/test1', function test1(req, res, next) { res.end(response1); });
+        //servers.rest_mw._rest.router.setRoute('/test1', function test1(req, res, next) { res.end(response1); });
+        servers.rest_mw._rest.router.setRoute('/test1', sendResponse);
         // 44.1k/s
-        function noop(){}
     }
 
     if (frameworks.rest_ha) {
@@ -116,7 +124,8 @@ if (cluster.isMaster) {
         // 46.6k/s routed, 82.7us
         // 46.5k/s using NanoRouter (45.3k/s w sendResponse)
         servers.rest_ha = frameworks.rest_ha.pkg({ router: new rest.NanoRouter() });
-        servers.rest_ha.get(path1, function(req, res, next) { res.end(response1); next() });                                    // 46.5k/s
+        //servers.rest_ha.get(path1, function(req, res, next) { res.end(response1); next() });                                    // 46.5k/s
+        servers.rest_ha.get(path1, sendResponse);
         servers.rest_ha.listen(frameworks.rest_ha.port);
     }
 
@@ -126,8 +135,9 @@ if (cluster.isMaster) {
         function noop(){}
         servers.rest._rest.processRequest = function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
-                res.end(response1);
                 //return mw.sendResponse(req, res, noop, null, 200, response1);
+                //res.end(response1);
+                sendResponse(req, res, noop);
             }
             else servers.rest._rest._tryWriteResponse(res, 404, {}, req.method + ' ' + req.url + ': path not routed');
         }
@@ -143,7 +153,8 @@ if (cluster.isMaster) {
                 req.on('data', function(chunk) { chunks.push(chunk) });
                 req.on('end', function() {
                     var body = Buffer.concat(chunks);
-                    res.end(response1);
+                    //res.end(response1);
+                    sendResponse(req, res, noop);
                 })
             }
             else { res.writeHead(404); res.end(); }
@@ -157,7 +168,8 @@ if (cluster.isMaster) {
         servers.http.on('request', function(req, res) {
             if (req.url === path1 && req.method === 'GET') {
                 readBody(req, res, function(err) {
-                    res.end(response1);
+                    //res.end(response1);
+                    sendResponse(req, res, noop);
                 })
             }
             else { res.writeHead(404); res.end(); }
