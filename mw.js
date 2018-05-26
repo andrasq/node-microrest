@@ -59,15 +59,16 @@ function _tryCall(func, cb, arg) { try { func(cb, arg) } catch (err) { cb(err) }
 // run the middleware stack until one returns next(err) or next(false)
 function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
 function _testMwStepsDone(err, done) { return err || done || err === false; }
-function _callbackWithoutArg(err, ctx) { ctx.callback(err) }
+//function _callbackWithoutArg(err, ctx) { ctx.callback(err) }
 function _callbackWithArg(err, ctx) { ctx.callback(err, ctx.arg) }
 function runMwSteps( steps, arg, req, res, callback, invokeCallback ) {
     var context = { ix: 0, steps: steps, req: req, res: res, callback: callback, arg: arg };
-    repeatUntil(_runOneMwStep, context, _testMwStepsDone, invokeCallback || _callbackWithArg);
+    //repeatUntil(_runOneMwStep, context, _testMwStepsDone, invokeCallback || _callbackWithArg);
+    runMwStepsContext(context, invokeCallback || _callbackWithArg);
 }
 // TODO: use this one:
-function runMwStepsContext( ctx, next ) {
-    repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, next);
+function runMwStepsContext( ctx, callback ) {
+    repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, callback);
 }
 
 // pass err to each error handler until one of them succeeds
