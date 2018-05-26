@@ -58,6 +58,16 @@ module.exports = {
             })
         },
 
+        'should pass arg to callback': function(t) {
+            var retvals = [0, 1];
+            var arg = {};
+            var spy = t.spy({}, 'fn', function(){ return retvals.shift() });
+            mw.repeatUntil(function(cb){ cb() }, arg, spy, function(err, ret) {
+                t.equal(ret, arg);
+                t.done();
+            })
+        },
+
         'should return error on second callback': function(t) {
             var fn = function(cb){ setImmediate(cb, null, true); setImmediate(cb, 2, true) };
             var spy = t.spy({}, 'fn', function(err) {
@@ -73,6 +83,29 @@ module.exports = {
             });
             t.expect(4);
             mw.repeatUntil(fn, null, spy)
+        },
+
+        'should catch error thrown in callback': function(t) {
+            var ncalls = 0;
+            t.expect(2);
+            mw.repeatUntil(function(cb) { cb(null, true) }, null, function(){ return true }, function(err) {
+                if (ncalls++ == 0) {
+                    t.ok(!err);
+                    throw 'mock callback error';
+                }
+                t.ok(err);
+                t.done();
+            })
+        },
+
+        'should be fast': function(t) {
+            console.time('repeatUntil 10m');
+            var n = 0;
+            function iterator(cb, arg) { cb(null, n++ >= 10000000) }
+            mw.repeatUntil(iterator, null, function(err) {
+                console.timeEnd('repeatUntil 10m', n);
+                t.done();
+            })
         },
     },
 
@@ -190,6 +223,22 @@ module.exports = {
             }
 
             t.done();
+        },
+
+        'mwParseQuery should parse req.query': function(t) {
+            var req = { query: 'a=1&b=t%77o&' };
+            mw.mwParseQuery(req, {}, function(err) {
+                t.deepEqual(req.params, { a: 1, b: 'two' });
+                t.done();
+            })
+        },
+
+        'mwParseBody should parse req.body': function(t) {
+            var req = { body: 'a=1&b=t%77o&' };
+            mw.mwParseBody(req, {}, function(err) {
+                t.deepEqual(req.params, { a: 1, b: 'two' });
+                t.done();
+            })
         },
     },
 }

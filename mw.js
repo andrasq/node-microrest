@@ -35,7 +35,7 @@ function warn( ) {
     console.warn("%s -- microrest: %s", new Date().toISOString(), util.format.apply(util, argv));
 }
 
-// node-v8: 63m/s tracking callCount (70m/s tracking, but 40)
+// node-v8: 74m/s tracking callCount (81m/s tracking, but 40) (loop of 100m)
 function repeatUntil( loop, arg, testStop, callback ) {
     var depth = 0, callCount = 0, returnCount = 0;
     if (!callback) { callback = testStop; testStop = _testRepeatUntilDone }
