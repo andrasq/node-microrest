@@ -68,20 +68,13 @@ function createHandler( options ) {
     var handler = rest.onRequest;
     handler.rest = rest;
 
-    var emitter = handler.rest.emitter;
-    ['emit', 'on', 'once', 'removeListener', 'listeners'].forEach(function(name) {
-        handler[name] = function(a, b) { return this.rest.emitter[name](a, b) }
-        setFunctionName(handler[name], name);
-    })
-
-    handler.use = useMw;
     function useRouter() { return rest.router ? rest.router : rest.router = new module.exports.NanoRouter() }
-    function useMw(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
+    handler.use = function useMw(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
 
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     httpMethods.forEach(function(method) {
         var fn = function( path, mw ) { useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
-        handler[method] = setFunctionName(fn, method);
+        handler[method] = Object.defineProperty(fn, 'name', { value: method });
     })
     handler.del = handler.delete;
     handler.listen = function(options, callback) {
@@ -93,7 +86,6 @@ function createHandler( options ) {
 
     return handler;
 }
-function setFunctionName( fn, name ) { fn = Object.defineProperty(fn, 'name', { value: name }); return fn; }
 
 // ----------------------------------------------------------------
 
@@ -115,8 +107,6 @@ function sliceMwArgs( dest, args, offset ) {
 function Rest( options ) {
     options = options || {};
     var self = this;
-
-    this.emitter = new events.EventEmitter();
 
     this.encoding = options.encoding !== undefined ? options.encoding : 'utf8';
     this.router = options.router;
@@ -162,7 +152,7 @@ NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
             if (err2) return runError(err2);
             self.routes[req.url]
                 ? _tryStep(self.routes[req.url], req, res, runError)
-                : runError(new Error('Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed'));
+                : (self._tryWriteResponse(res, 404, {}, { code: 404, message: 'Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed' }), runFinally())
     }) })
     function runError(err) { ((err3 = err) && self.routes.err) ? _tryErrStep(self.routes.err, err3, req, res, runFinally) : runFinally(err3) }
     function runFinally(err) { if (err4 = err) _reportError(err, 'unhandled mw error'); _tryStep(self.routes.post, req, res, runReturn) }
