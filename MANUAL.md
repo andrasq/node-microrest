@@ -20,15 +20,15 @@ The app function is called on every http request.  It reads the request body,
 and invokes the configured `processRequest` function that sends the response.
 
 The app has properties
-- app.rest - the Rest instance the app uses
+- `app.rest` - the Rest instance the app uses
 
 The app has methods
-- app.use(func) - mw routing method.  Calling app.use switches to running in routed mode,
+- `app.use(func)` - mw routing method.  Calling app.use switches to running in routed mode,
   `processRequest` will not be called.  A four-argument function is used as the error handler,
   else as the pre-middleware step.
-- app.get, app.post, app.put, app.del, etc - mw routing methods
-- onError(err, req, res, next) - function called if the route handler encounters an error
-- listen([portOrOptions], [callback]) - invoke rest.createServer with this app as the
+- `app.get`, `app.post`, `app.put`, `app.del`, etc - mw routing methods
+- `app.onError(err, req, res, next)` - function called if the route handler encounters an error
+- `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the
   request listener.  Port can be numeric, or can be createServer options.
 
     const rest = require('microrest');
