@@ -97,7 +97,7 @@ function Rest( options ) {
 
     this.processRequest = options.processRequest;
     this.onError = options.onError || function onError( err, req, res, next ) {
-        var err2 = Rest._tryWriteResponse(res, 500, {}, { code: 500, message: 'Internal Error', debug: err.message });
+        var err2 = Rest._sendErrorResponse(res, { code: 500, message: 'Internal Error', debug: err.message });
         if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
         next(err2);
     };
@@ -136,7 +136,7 @@ Rest.NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
             if (err2) return runError(err2);
             self.routes[req.url]
                 ? _tryStep(self.routes[req.url], req, res, runError)
-                : (Rest._tryWriteResponse(res, 404, {}, { code: 404, message: 'Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed' }), runFinally())
+                : runFinally(Rest._sendErrorResponse(res, { code: 404, message: 'Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed' }))
     }) })
     function runError(err) { ((err3 = err) && self.routes.err) ? _tryErrStep(self.routes.err, err3, req, res, runFinally) : runFinally(err3) }
     function runFinally(err) { if (err4 = err) _reportError(err, 'unhandled mw error'); _tryStep(self.routes.post, req, res, runReturn) }
@@ -185,12 +185,9 @@ Rest.readBody = function readBody( req, res, next ) {
     })
 }
 
-Rest._tryWriteResponse = function _writeResponse( res, scode, hdr, body ) {
-    try {
-        res.statusCode = scode || 200;
-        for (var k in hdr) res.setHeader(k, hdr[k]);
-        res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
-    } catch (err) { return err }
+Rest._sendErrorResponse = function _sendErrorResponse( res, err ) {
+    res.statusCode = err.code || 500;
+    try { res.end(JSON.stringify(err)) } catch (err2) { return err2 }
 }
 
 Rest.prototype = toStruct(Rest.prototype);

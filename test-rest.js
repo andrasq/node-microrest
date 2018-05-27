@@ -206,14 +206,14 @@ module.exports = {
 
                 'should catch runRoute errors': function(t) {
                     t.stub(this.rest.router, 'runRoute').throws(new Error('mock runRoute error'));
-                    var spy = t.spy(Rest, '_tryWriteResponse');
+                    var spy = t.spy(Rest, '_sendErrorResponse');
                     var spy2 = t.spy(this.rest, 'onError');
                     var res = mockRes();
                     var spy3 = t.spy(res, 'end');
                     this.rest.onRequest(mockReq(), res);
                     setImmediate(function() {
                         t.ok(spy.called);
-                        t.contains(spy.args[0][3], { debug: 'mock runRoute error' });
+                        t.contains(spy.args[0][1], { debug: 'mock runRoute error' });
                         t.ok(spy2.called);
                         t.contains(spy3.args[0][0], '"debug":"mock runRoute error"');
                         t.done();
@@ -660,41 +660,32 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
             },
         },
 
-        '_tryWriteResponse': {
+        '_sendErrorResponse': {
             setUp: function(done) {
                 this.rest = new Rest();
                 this.res = mockRes();
                 done();
             },
 
-            'should set statusCode, headers, and write string body': function(t) {
+            'should set statusCode and and write string body': function(t) {
                 var spy = t.spy(this.res, 'end');
-                Rest._tryWriteResponse(this.res, 123, { 'my-header-1': 1234, 'header-two': 2345 }, "response");
+                Rest._sendErrorResponse(this.res, { code: 123, message: "response" });
                 t.equal(this.res.statusCode, 123);
-                t.contains(this.res._headers, { 'my-header-1': 1234, 'header-two': 2345 });
                 t.ok(spy.called);
-                t.equal(spy.args[0][0], 'response');
+                t.equal(spy.args[0][0], '{"code":123,"message":"response"}');
                 t.done();
             },
 
-            'should default to statusCode 200': function(t) {
-                Rest._tryWriteResponse(this.res);
-                t.equal(this.res.statusCode, 200);
-                t.done();
-            },
-
-            'should write Buffer body': function(t) {
-                var spy = t.spy(this.res, 'end');
-                Rest._tryWriteResponse(this.res, null, null, new Buffer('response'));
-                t.ok(spy.called);
-                t.equal(spy.args[0][0].toString(), 'response');
+            'should default to statusCode 500': function(t) {
+                Rest._sendErrorResponse(this.res, {});
+                t.equal(this.res.statusCode, 500);
                 t.done();
             },
 
             'should json encode object body': function(t) {
                 var spy = t.spy(this.res, 'end');
-                var err = Rest._tryWriteResponse(this.res, null, null, { json: true });
-                t.equal(this.res.statusCode, 200);
+                var err = Rest._sendErrorResponse(this.res, { json: true });
+                t.equal(this.res.statusCode, 500);
                 t.deepEqual(this.res._headers, {});
                 t.ok(spy.called);
                 t.equal(spy.args[0][0], '{"json":true}');
@@ -988,7 +979,7 @@ function NonRouter( ) {
     this.runRoute = function(rest, req, res, next) {
         rest.readBody(req, res, function(err) {
             if (!err) try { rest.processRequest(req, res, next, req.body) } catch (e) { err = e }
-            if (err) rest._tryWriteResponse(res, 500, {}, {code: 500, message: 'Internal Error', debug: err.message });
+            if (err) rest._sendErrorResponse(res, {code: 500, message: 'Internal Error', debug: err.message });
         })
     };
 }
