@@ -31,6 +31,7 @@ The app has methods
 - `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the
   request listener.  Port can be numeric, or can be createServer options.
 
+
     const rest = require('microrest');
     const app = rest();
     const server = app.listen(1337, function(err, serverInfo) {
