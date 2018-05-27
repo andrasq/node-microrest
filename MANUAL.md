@@ -28,8 +28,8 @@ The app has methods
   else as the pre-middleware step.
 - `app.get`, `app.post`, `app.put`, `app.del`, etc - mw routing methods
 - `app.onError(err, req, res, next)` - function called if the route handler encounters an error
-- `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the
-  request listener.  Port can be numeric, or can be createServer options.
+- `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the request
+listener.  Port can be numeric, or can be createServer options.
 
 
     const rest = require('microrest');
