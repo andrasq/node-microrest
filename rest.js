@@ -13,10 +13,8 @@ var http = require('http');
 var https = require('https');
 var events = require('events');
 
-var rest = module.exports = createHandler;
+module.exports = createHandler;
 module.exports.Rest = Rest;
-Rest.NanoRouter = NanoRouter;
-module.exports.NanoRouter = NanoRouter;
 module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
 module.exports = toStruct(module.exports);
@@ -64,7 +62,7 @@ function createHandler( options ) {
     var handler = rest.onRequest;
     handler.rest = rest;
 
-    function useRouter() { return rest.router ? rest.router : rest.router = new module.exports.NanoRouter() }
+    function useRouter() { return rest.router ? rest.router : rest.router = new Rest.NanoRouter() }
     handler.use = function useMw(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
 
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
@@ -111,26 +109,26 @@ function Rest( options ) {
     function _invokeOnRequest(req, res, next) { self._onRequest(req, res, next) }
 }
 
-function NanoRouter( ) {
+Rest.NanoRouter = function NanoRouter( ) {
     this.routes = { use: null, err: null, post: null, readBody: Rest.readBody };
     this.matchPrefix = true;
 }
-NanoRouter.prototype.setRoute = function setRoute( path, method, mwStep ) {
+Rest.NanoRouter.prototype.setRoute = function setRoute( path, method, mwStep ) {
     if (!mwStep) { mwStep = method; method = '_ANY_' }
     if (Array.isArray(mwStep)) { if (mwStep.length !== 1) throw new Error('multiple mw steps not supported'); mwStep = mwStep[0]; }
     if (typeof path === 'function') path.length === 4 ? this.routes.err = path : this.routes.use = path;
     else if (typeof mwStep !== 'function') throw new Error('mw step must be a function');
     this.routes[path] = mwStep;
 }
-NanoRouter.prototype.getRoute = function getRoute( path, method ) {
+Rest.NanoRouter.prototype.getRoute = function getRoute( path, method ) {
     var mwSteps = this.routes[path];
     while (!mwSteps && this.matchPrefix && path.length > 1) mwSteps = this.routes[path = path.slice(path, path.lastIndexOf('/')) || '/'];
     return mwSteps;
 }
-NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
+Rest.NanoRouter.prototype.deleteRoute = function deleteRoute( path, method ) {
     delete this.routes[path];
 }
-NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
+Rest.NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
     var self = this, err3, err4, err5;
     _tryStep(self.routes.use, req, res, function(err1) {
         if (err1) return runError(err1);

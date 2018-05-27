@@ -327,7 +327,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
             var handler = rest.createHandler();
             t.ok(!handler.rest.router);
             handler.use(noop);
-            t.ok(handler.rest.router instanceof rest.NanoRouter);
+            t.ok(handler.rest.router instanceof Rest.NanoRouter);
             t.done();
         },
 
@@ -338,7 +338,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
             handler.post('/path2', noop);
             var router2 = handler.rest.router;
             t.equal(router1, router2);
-            t.ok(router1 instanceof rest.NanoRouter);
+            t.ok(router1 instanceof Rest.NanoRouter);
             t.done();
         },
 
@@ -705,35 +705,35 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
 
     'NanoRouter': {
         'setRoute should accept function': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             router.setRoute(noop);
             router.setRoute('/path1', noop);
             t.done();
         },
 
         'setRoute should accept path and function': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             router.setRoute('/path1', noop);
             t.deepEqual(router.getRoute('/path1'), noop);
             t.done();
         },
 
         'setRoute should accept path and array of 1 function': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             router.setRoute('/path1', [noop]);
             t.deepEqual(router.getRoute('/path1'), noop);
             t.done();
         },
 
         'setRoute should accept path, method and function': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             router.setRoute('/path1', 'FOO', noop);
             t.deepEqual(router.getRoute('/path1', 'FOO'), noop);
             t.done();
         },
 
         'getRoute should return the mw steps or null': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             router.setRoute('/path2', noop);
             t.equal(router.getRoute('/path0'), null);
             t.deepEqual(router.getRoute('/path2'), noop);
@@ -741,7 +741,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'getRoute should match a routed prefix': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             router.setRoute('/', noop);
             router.setRoute('/path', noop2);
             router.setRoute('/path/name', noop3);
@@ -753,7 +753,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'deleteRoute should remove route': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             router.setRoute('/path1', noop);
             router.deleteRoute('/path1');
             t.equal(router.getRoute('path1'), null);
@@ -761,7 +761,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'setRoute should reject non-function mw': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.throws(function(){ router.setRoute(123) }, /must be a function/);
             t.throws(function(){ router.setRoute('/path', 123) }, /must be a function/);
             t.throws(function(){ router.setRoute('/path', [123]) }, /must be a function/);
@@ -770,13 +770,13 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'setRoute should reject array of 2 functions': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.throws(function(){ router.setRoute('/path', [noop, noop]) }, /not supported/);
             t.done();
         },
 
         'setRoute should set use and err steps': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             var fn1 = function(req, res, next) {};
             router.setRoute(fn1);
             t.equal(router.routes.use, fn1);
@@ -787,7 +787,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should run use and mw steps': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             var calls = [];
             router.setRoute(function(req, res, next) { calls.push('use1'); next() });
@@ -806,7 +806,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
 
         'runRoute should return error on unrouted path': function(t) {
 // FIXME: not! not if could handle the error (ie, return 404 status to the caller)
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('err', function(err, req, res, next) { next(err) });
             var res = mockRes();
@@ -817,7 +817,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should return mw error': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             var called = false;
             router.setRoute('/path1', function(req, res, next) { next('mock 2 mw error') });
@@ -830,7 +830,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should not return error if error was handled by mw': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields('mock mw error', '');
             router.setRoute('err', function(err, req, res, next) { next() });
             router.runRoute(mockRest(), { url: '/test/url' }, mockRes(), function(err) {
@@ -840,7 +840,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should catch and return mw exception': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('/path1', function(req, res, next) { throw 'mock 3 mw error' });
             router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
@@ -851,7 +851,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should return use error': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('use', function(req, res, next) { next('mock use error') });
             router.setRoute('/path1', noopStep);
@@ -862,7 +862,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should return readBody error': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields('mock readBody error');
             router.setRoute('/path1', function(req, res, next) { next('mock use error') });
             router.runRoute(mockRest(), { url: '/path1' }, {}, function(err) {
@@ -872,7 +872,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should catch err mw exception': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields('mock readBody error');
             router.setRoute('/path1', function(req, res, next) { next('mock use error') });
             router.setRoute('err', function(err, req, res, next) { throw 'mock err mw error' });
@@ -883,7 +883,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should return finally error': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('/path1', noopStep);
             router.setRoute('post', function(req, res, next) { next('mock finally error') });
@@ -894,7 +894,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should catch finally mw exception': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields('mock readBody error');
             router.setRoute('/path1', function(req, res, next) { next('mock use error') });
             router.setRoute('post', function(err, req, res, next) { throw 'mock post mw error' });
@@ -905,7 +905,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should catch exception thrown by its callback': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields('mock readBody error');
             router.setRoute('/path1', noopStep);
             var spy = t.spy(process.stderr, 'write');
@@ -922,7 +922,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
         },
 
         'runRoute should return the unhandled error to its callback': function(t) {
-            var router = new rest.NanoRouter();
+            var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('/path1', noopStep);
             router.setRoute('post', function(req, res, next) { next('mock finally error') });
