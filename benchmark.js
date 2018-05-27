@@ -109,7 +109,7 @@ if (cluster.isMaster) {
 
     if (frameworks.rest_mw) {
         // 44.1k/s 85.1us
-        servers.rest_mw = frameworks.rest_mw.pkg.createServer({ port: frameworks.rest_mw.port, /*router: new rest.NanoRouter()*/ });
+        servers.rest_mw = frameworks.rest_mw.pkg.createServer({ port: frameworks.rest_mw.port, /*router: new rest.Rest.NanoRouter()*/ });
         servers.rest_mw._rest.router = new Router();
         //servers.rest_mw._rest.router.setRoute('/test1', function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });
         // 43.3k/s (52k/s w/ wrk)
@@ -123,7 +123,7 @@ if (cluster.isMaster) {
         // 49.3k/s, 76.8us
         // 46.6k/s routed, 82.7us
         // 46.5k/s using NanoRouter (45.3k/s w sendResponse)
-        servers.rest_ha = frameworks.rest_ha.pkg({ router: new rest.NanoRouter() });
+        servers.rest_ha = frameworks.rest_ha.pkg({ router: new rest.Rest.NanoRouter() });
         //servers.rest_ha.get(path1, function(req, res, next) { res.end(response1); next() });                                    // 46.5k/s
         servers.rest_ha.get(path1, sendResponse);
         servers.rest_ha.listen(frameworks.rest_ha.port);
