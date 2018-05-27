@@ -6,15 +6,27 @@ microrest
 Extremely small, extremely fast embeddable REST web framework.
 Perfect for adding a web API to an existing app.
 
-    const rest = require('microrest');
+To use as a bare-bones request handler:
 
+    const rest = require('microrest');
+    const handler = rest();
+    handler.processRequest = function(req, res, next) {
+        // read the request and send a response
+        next();
+    }
+    http.listen(1337, handler);
+
+To use as a light-weight app:
+
+    const rest = require('microrest');
     const app = rest();
     app.get('/hello', (req, res, next) => {
-        res.end('hello back');
+        // request body available in req.body
+        res.end('hello back, you said' + req.body);
         next();
     })
     const server = app.listen(1337, (err, serverInfo) => {
-        console.log('app listening on port %d', serverInfo.port);
+        // app is listening on port `serverInfo.port`
     })
 
 

@@ -98,7 +98,7 @@ Helper methods:
 Router
 ------
 
-`Rest` uses by default a tiny built-in router accessible as `rest.NanoRouter`.
+The `Rest` app uses by default a tiny built-in router of type `rest.NanoRouter`.
 NanoRouter supports a single `use` step, a single error handler `err` step, one
 middleware function step for each mapped route, and a `post` step that is run like a
 try/catch "finally" after all the other steps and/or the error handler have run.
