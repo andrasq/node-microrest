@@ -18,7 +18,6 @@ module.exports = {
             t.equal(typeof rest, 'function');
             t.equal(rest, rest.createHandler);
             t.equal(typeof rest.Rest, 'function');
-            t.equal(typeof rest.HttpError, 'function');
             t.equal(typeof rest.createServer, 'function');
             t.equal(typeof rest.createHandler, 'function');
             t.done();
@@ -74,7 +73,7 @@ module.exports = {
 
             'should catch readBody error': function(t) {
                 var spy = t.spy(this.rest, 'onError');
-                t.stub(this.rest, 'readBody').throws('mock readBody error');
+                t.stubOnce(Rest, 'readBody').throws('mock readBody error');
                 this.rest.onRequest(mockReq(), mockRes(), noop);
                 setImmediate(function() {
                     t.ok(spy.called);
@@ -85,7 +84,7 @@ module.exports = {
 
             'should return readBody error': function(t) {
                 var spy = t.spy(this.rest, 'onError');
-                t.stub(this.rest, 'readBody').yieldsAsync('mock readBody error');
+                t.stubOnce(Rest, 'readBody').yieldsAsync('mock readBody error');
                 this.rest.onRequest(mockReq(), mockRes(), noop);
                 setTimeout(function() {
                     t.ok(spy.called);
@@ -96,7 +95,7 @@ module.exports = {
 
             'should catch onError error': function(t) {
                 var req = mockReq();
-                t.stub(this.rest, 'readBody').throws('mock readBody error');
+                t.stubOnce(Rest, 'readBody').throws('mock readBody error');
                 t.stub(this.rest, 'onError').throws('mock onError error');
                 var spy = t.stub(process.stderr, 'write');
                 this.rest.onRequest(req, mockRes());
@@ -110,7 +109,7 @@ module.exports = {
 
             'without router': {
                 'should invoke processRequest': function(t) {
-                    t.stub(this.rest, 'readBody').yieldsAsync(null, 'mock body');
+                    t.stubOnce(Rest, 'readBody').yieldsAsync(null, 'mock body');
                     var spy = t.stub(this.rest, 'processRequest').yields();
                     var req, res;
                     this.rest.onRequest(req = mockReq(), res = mockRes(), noop);
@@ -125,12 +124,12 @@ module.exports = {
                 },
 
                 'should error out if no processRequest': function(t) {
-                    t.stub(this.rest, 'readBody').yieldsAsync(null, 'mock body');
+                    t.stubOnce(Rest, 'readBody').yieldsAsync(null, 'mock body');
                     var spy = t.spy(this.rest, 'onError');
                     this.rest.onRequest(mockReq(), mockRes(), noop);
                     setTimeout(function() {
                         t.ok(spy.called);
-                        t.ok(spy.args[0][0].debug, 'no router or processRequest');
+                        t.contains(spy.args[0][0].message, 'no router or processRequest');
                         t.done();
                     }, 5);
                 },
@@ -138,7 +137,7 @@ module.exports = {
                 'should pass processRequest exception to onError': function(t) {
                     var spy = t.spy(this.rest, 'onError');
                     t.stub(this.rest, 'processRequest').throws(new Error('mock processRequest error'));
-                    t.stub(this.rest, 'readBody').yields(null, '');
+                    t.stubOnce(Rest, 'readBody').yields(null, '');
                     var spy = t.spy(this.rest, 'onError');
                     this.rest.onRequest(mockReq(), mockRes(), function(err) {
                         t.ok(spy.called);
@@ -150,7 +149,7 @@ module.exports = {
                 'should pass processRequest error to onError': function(t) {
                     var spy = t.spy(this.rest, 'onError');
                     t.stub(this.rest, 'processRequest').yields(new Error('mock processRequest error'));
-                    t.stub(this.rest, 'readBody').yields(null, '');
+                    t.stubOnce(Rest, 'readBody').yields(null, '');
                     var spy = t.spy(this.rest, 'onError');
                     this.rest.onRequest(mockReq(), mockRes(), function(err) {
                         t.ok(spy.called);
@@ -162,7 +161,7 @@ module.exports = {
                 'should catch onError exception and return original error': function(t) {
                     t.stub(this.rest, 'processRequest').throws('invoke onError');
                     t.stub(this.rest, 'onError').throws('mock onError error X');
-                    t.stubOnce(this.rest, 'readBody').yields(null, '');
+                    t.stubOnce(Rest, 'readBody').yields(null, '');
                     var spy = t.spyOnce(process.stderr, 'write');
                     this.rest.onRequest(mockReq(), mockRes(), function(err) {
                         t.ok(err);
@@ -206,17 +205,17 @@ module.exports = {
                 },
 
                 'should catch runRoute errors': function(t) {
-                    t.stub(this.rest.router, 'runRoute').throws(new Error('runRoute error'));
-                    var spy = t.spy(this.rest, '_tryWriteResponse');
+                    t.stub(this.rest.router, 'runRoute').throws(new Error('mock runRoute error'));
+                    var spy = t.spy(Rest, '_tryWriteResponse');
                     var spy2 = t.spy(this.rest, 'onError');
                     var res = mockRes();
                     var spy3 = t.spy(res, 'end');
                     this.rest.onRequest(mockReq(), res);
                     setImmediate(function() {
                         t.ok(spy.called);
-                        t.contains(spy.args[0][3], { debug: 'runRoute error' });
+                        t.contains(spy.args[0][3], { debug: 'mock runRoute error' });
                         t.ok(spy2.called);
-                        t.contains(spy3.args[0][0], '"debug":"runRoute error"');
+                        t.contains(spy3.args[0][0], '"debug":"mock runRoute error"');
                         t.done();
                     })
                 },
@@ -249,7 +248,7 @@ module.exports = {
 
             'should return an unhandled error to its callback': function(t) {
                 var rest = new Rest();
-                t.stubOnce(rest, 'readBody').yields(null, '');
+                t.stubOnce(Rest, 'readBody').yields(null, '');
                 rest.processRequest = function(req, res, next) { next('mock processRequest error') };
                 rest.onError = function(err, req, res, next) { next(err) };
                 rest._onRequest(mockReq({ url: '/path1' }), {}, function(err) {
@@ -304,6 +303,8 @@ module.exports = {
                 t.ok(true);
             }
             var req = http.request("http://localhost:1337/test", function(res) {
+console.log("AR: got", res.statusCode, res.body);
+res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
                 server.close();
                 t.done();
             })
@@ -403,6 +404,9 @@ module.exports = {
         },
 
         'handler should be an event emitter': function(t) {
+            // no longer an event emitter
+            t.skip();
+
             var handler = rest.createHandler();
             handler.on('finishTest', noop);
             handler.on('finishTest', onFinish);
@@ -559,32 +563,6 @@ module.exports = {
     },
 
     'helpers': {
-        'HttpError': {
-            'should encode statusCode, message, debug': function(t) {
-                var err = new rest.HttpError(404, 'my error message');
-                t.equal(err.statusCode, 404);
-                t.equal(err.message, '404 Not Found');
-                t.equal(err.debug, 'my error message');
-
-                // without params
-                var err = new rest.HttpError();
-                t.equal(err.statusCode, 500);
-                t.equal(err.message, '500 Internal Error');
-
-                // with just a status code
-                var err = new rest.HttpError(401);
-                t.equal(err.statusCode, 401);
-                t.equal(err.message, '401 Unauthorized');
-
-                // with a custom status code
-                var err = new rest.HttpError(999);
-                t.equal(err.statusCode, 999);
-                t.equal(err.message, '999 Internal Error');
-
-                t.done();
-            },
-        },
-
         'readBody': {
             setUp: function(done) {
                 this.rest = new Rest();
@@ -597,7 +575,7 @@ module.exports = {
 
             'should gather string chunks': function(t) {
                 var req = this.req;
-                this.rest.readBody(req, {}, function(err, body) {
+                Rest.readBody(req, {}, function(err, body) {
                     t.equal(body, 'chunk1chunk2');
                     t.equal(req.body, body);
                     t.done();
@@ -609,7 +587,7 @@ module.exports = {
 
             'should gather buffers': function(t) {
                 var req = this.req;
-                this.rest.readBody(req, {}, function(err, body) {
+                Rest.readBody(req, {}, function(err, body) {
                     t.ok(Buffer.isBuffer(body));
                     t.equal(body.toString(), 'chunk1chunk2');
                     t.equal(req.body, body);
@@ -623,7 +601,7 @@ module.exports = {
             'should gather single buffer': function(t) {
                 var req = this.req;
                 var buff = new Buffer('chunk1');
-                this.rest.readBody(req, {}, function(err, body) {
+                Rest.readBody(req, {}, function(err, body) {
                     t.equal(body, buff);
                     t.strictEqual(req.body, body);
                     t.done();
@@ -635,7 +613,7 @@ module.exports = {
             'should gather empty string body': function(t) {
                 var req = this.req;
                 this.rest.encoding = 'utf8';
-                this.rest.readBody(req, {}, function(err, body) {
+                Rest.readBody(req, {}, function(err, body) {
                     t.equal(body, '');
                     t.strictEqual(req.body, body);
                     t.done();
@@ -646,7 +624,7 @@ module.exports = {
             'should gather empty buffer body': function(t) {
                 var req = this.req;
                 req._readableState.encoding = null;
-                this.rest.readBody(req, {}, function(err, body) {
+                Rest.readBody(req, {}, function(err, body) {
                     t.ok(Buffer.isBuffer(body));
                     t.equal(body.toString(), '');
                     t.strictEqual(req.body, body);
@@ -660,7 +638,7 @@ module.exports = {
                     var req = this.req;
                     this.req.body = "abc";
                     var spy = t.spy(this.rest, '_doReadBody');
-                    this.rest.readBody(this.req, {}, function(err, body) {
+                    Rest.readBody(this.req, {}, function(err, body) {
                         t.ok(!spy.called);
                         t.equal(body, undefined);
                         t.equal(req.body, 'abc');
@@ -672,7 +650,7 @@ module.exports = {
 
                 'should return http error': function(t) {
                     var req = this.req;
-                    this.rest.readBody(req, {}, function(err) {
+                    Rest.readBody(req, {}, function(err) {
                         t.ok(err);
                         t.equal(err, 'mock http error');
                         t.done();
@@ -691,7 +669,7 @@ module.exports = {
 
             'should set statusCode, headers, and write string body': function(t) {
                 var spy = t.spy(this.res, 'end');
-                this.rest._tryWriteResponse(this.res, 123, { 'my-header-1': 1234, 'header-two': 2345 }, "response");
+                Rest._tryWriteResponse(this.res, 123, { 'my-header-1': 1234, 'header-two': 2345 }, "response");
                 t.equal(this.res.statusCode, 123);
                 t.contains(this.res._headers, { 'my-header-1': 1234, 'header-two': 2345 });
                 t.ok(spy.called);
@@ -700,14 +678,14 @@ module.exports = {
             },
 
             'should default to statusCode 200': function(t) {
-                this.rest._tryWriteResponse(this.res);
+                Rest._tryWriteResponse(this.res);
                 t.equal(this.res.statusCode, 200);
                 t.done();
             },
 
             'should write Buffer body': function(t) {
                 var spy = t.spy(this.res, 'end');
-                this.rest._tryWriteResponse(this.res, null, null, new Buffer('response'));
+                Rest._tryWriteResponse(this.res, null, null, new Buffer('response'));
                 t.ok(spy.called);
                 t.equal(spy.args[0][0].toString(), 'response');
                 t.done();
@@ -715,7 +693,7 @@ module.exports = {
 
             'should json encode object body': function(t) {
                 var spy = t.spy(this.res, 'end');
-                var err = this.rest._tryWriteResponse(this.res, null, null, { json: true });
+                var err = Rest._tryWriteResponse(this.res, null, null, { json: true });
                 t.equal(this.res.statusCode, 200);
                 t.deepEqual(this.res._headers, {});
                 t.ok(spy.called);
@@ -831,9 +809,9 @@ module.exports = {
             var router = new rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('err', function(err, req, res, next) { next(err) });
-            router.runRoute(mockRest(), { url: '/test/url' }, mockRes(), function(err) {
-                t.ok(err);
-                t.contains(err.message, 'not routed');
+            var res = mockRes();
+            router.runRoute(mockRest(), { url: '/test/url' }, res, function(err) {
+                t.equal(res.statusCode, 404);
                 t.done();
             })
         },
@@ -998,7 +976,7 @@ function MicroRouter( ) {
             if (err) return next(err);
             if (self.routes[req.url]) return self.routes[req.url](req, res, next);
             // FIXME: returns as a 404 embedded inside a 500 error
-            next(new rest.HttpError(404, req.method + ' ' + req.url + ': path not routed'));
+            next(new Error(req.method + ' ' + req.url + ': path not routed'));
         })
     }
 }

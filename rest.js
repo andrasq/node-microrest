@@ -15,14 +15,10 @@ var events = require('events');
 
 var rest = module.exports = createHandler;
 module.exports.Rest = Rest;
-Rest.HttpError = HttpError;
 Rest.NanoRouter = NanoRouter;
-Rest.readBody = readBody;
-module.exports.HttpError = HttpError;
 module.exports.NanoRouter = NanoRouter;
 module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
-module.exports.readBody = readBody;
 module.exports = toStruct(module.exports);
 
 function createServer( options, callback ) {
@@ -87,16 +83,6 @@ function createHandler( options ) {
     return handler;
 }
 
-// ----------------------------------------------------------------
-
-function HttpError( statusCode, debugMessage, details ) {
-    var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Error'));
-    err.statusCode = statusCode || 500;
-    err.debug = debugMessage;
-    err.details = details;
-    return err;
-}
-
 function sliceMwArgs( dest, args, offset ) {
     for (var i = offset; i < args.length; i++) dest.push(args[i]);
     return (dest.length === 1 && Array.isArray(dest[0])) ? dest[0] : dest;
@@ -113,7 +99,7 @@ function Rest( options ) {
 
     this.processRequest = options.processRequest;
     this.onError = options.onError || function onError( err, req, res, next ) {
-        var err2 = self._tryWriteResponse(res, 500, {}, { code: 500, message: 'Internal Error', debug: err.message });
+        var err2 = Rest._tryWriteResponse(res, 500, {}, { code: 500, message: 'Internal Error', debug: err.message });
         if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
         next(err2);
     };
@@ -126,7 +112,7 @@ function Rest( options ) {
 }
 
 function NanoRouter( ) {
-    this.routes = { use: null, err: null, post: null, readBody: Rest.prototype.readBody };
+    this.routes = { use: null, err: null, post: null, readBody: Rest.readBody };
     this.matchPrefix = true;
 }
 NanoRouter.prototype.setRoute = function setRoute( path, method, mwStep ) {
@@ -152,7 +138,7 @@ NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
             if (err2) return runError(err2);
             self.routes[req.url]
                 ? _tryStep(self.routes[req.url], req, res, runError)
-                : (self._tryWriteResponse(res, 404, {}, { code: 404, message: 'Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed' }), runFinally())
+                : (Rest._tryWriteResponse(res, 404, {}, { code: 404, message: 'Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed' }), runFinally())
     }) })
     function runError(err) { ((err3 = err) && self.routes.err) ? _tryErrStep(self.routes.err, err3, req, res, runFinally) : runFinally(err3) }
     function runFinally(err) { if (err4 = err) _reportError(err, 'unhandled mw error'); _tryStep(self.routes.post, req, res, runReturn) }
@@ -170,8 +156,8 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     var self = this;
     try { req.setEncoding(self.encoding); (self.router)
         ? self.router.runRoute(self, req, res, _doReturn)
-        : self.readBody(req, res, function(err, body) {
-            if (err || !self.processRequest) _doReturn(err || new rest.HttpError(500, 'no router or processRequest configured'));
+        : Rest.readBody(req, res, function(err, body) {
+            if (err || !self.processRequest) _doReturn(err || new Error('no router or processRequest configured'));
             else try { self.processRequest(req, res, _doReturn, body); } catch (e) { _doReturn(e) };
         })
     } catch (e) { _doReturn(e) }
@@ -182,8 +168,7 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     }
 }
 
-Rest.prototype.readBody = readBody;
-function readBody( req, res, next ) {
+Rest.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
     var body = '', chunks = null, bodySize = 0;
 
@@ -202,7 +187,7 @@ function readBody( req, res, next ) {
     })
 }
 
-Rest.prototype._tryWriteResponse = function _writeResponse( res, scode, hdr, body ) {
+Rest._tryWriteResponse = function _writeResponse( res, scode, hdr, body ) {
     try {
         res.statusCode = scode || 200;
         for (var k in hdr) res.setHeader(k, hdr[k]);
