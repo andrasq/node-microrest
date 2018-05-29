@@ -90,7 +90,7 @@ module.exports = {
                     t.ok(spy.called);
                     t.equal(spy.args[0][0], 'mock readBody error');
                     t.done();
-                }, 3);
+                }, 10);
             },
 
             'should catch onError error': function(t) {
