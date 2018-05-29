@@ -228,7 +228,7 @@ module.exports = {
                         t.ok(spy.called);
                         t.equal(spy.args[0][0].message, 'mock runRoute error 2');
                         t.done();
-                    }, 3);
+                    }, 10);
                 },
             },
         },
