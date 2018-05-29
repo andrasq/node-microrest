@@ -62,18 +62,18 @@ function createHandler( options ) {
     var handler = rest.onRequest;
     handler.rest = rest;
 
-    function useRouter() { return rest.router ? rest.router : rest.router = new Rest.NanoRouter() }
-    handler.use = function useMw(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
-
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
+    function useRouter() { return rest.router ? rest.router : rest.router = new Rest.NanoRouter() }
+    handler.use = function use(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
     httpMethods.forEach(function(method) {
         var fn = function( path, mw ) { useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
         handler[method] = Object.defineProperty(fn, 'name', { value: method });
     })
     handler.del = handler.delete;
+
     handler.listen = function(options, callback) {
         if (typeof options === 'function') { callback = options; options = 0; }
-        options = (options > 0 || options === 0) ? { port: options } : options ? options : { port: 0 };
+        options = (options > 0 || options === 0) ? { port: +options } : options ? options : { port: 0 };
         options.rest = handler.rest;
         return module.exports.createServer(options, callback)
     };
@@ -97,7 +97,7 @@ function Rest( options ) {
 
     this.processRequest = options.processRequest;
     this.onError = options.onError || function onError( err, req, res, next ) {
-        var err2 = Rest._sendErrorResponse(res, { code: 500, message: 'Internal Error', debug: err.message });
+        var err2 = Rest._sendErrorResponse(res, { code: err.statusCode || 500, message: 'Internal Error', debug: err.debug || err.message });
         if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
         next(err2);
     };
