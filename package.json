@@ -11,7 +11,7 @@
 
   "scripts": {
     "pretest": "qnit --version || npm install qnit",
-    "test": "qnit test-rest* test-mw* test-rou* || false",
+    "test": "qnit -t 10000 test-rest* test-mw* test-rou* || false",
     "coverage": "nyc -r text -r lcov npm test",
     "clean": "rm -rf .nyc_output/ coverage/"
   }
