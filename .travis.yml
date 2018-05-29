@@ -4,6 +4,8 @@ node_js:
   - 6
   - 8
   - 10
+preinstall:
+  - npm install npm@2.15.0
 after_success:
   - npm install -g nyc@8.4.0
   - npm install -g codecov
