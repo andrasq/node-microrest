@@ -21,6 +21,9 @@ var mw = module.exports = {
     writeResponse: writeResponse,
 }
 
+// node-v0.10 nextTick did not accept function args yet
+var nodeVersion = process.version.slice(1, process.version.indexOf('.'));
+var nextTick = nodeVersion >= 4 ? process.nextTick : setImmediate;
 
 function HttpError( statusCode, debugMessage, details ) {
     var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Error'));
@@ -38,6 +41,7 @@ function warn( ) {
 }
 
 // node-v8: 74m/s tracking callCount (81m/s tracking, but 40) (loop of 100m)
+// but only 73m/s breaking up stack with a bound function and 22m/s with setImmediate
 function repeatUntil( loop, arg, testStop, callback ) {
     var depth = 0, callCount = 0, returnCount = 0;
     if (!callback) { callback = testStop; testStop = _testRepeatUntilDone }
@@ -52,7 +56,7 @@ function repeatUntil( loop, arg, testStop, callback ) {
         }
         else if (testStop(err, stop)) { return callback(err, arg); }
         else if (depth++ < 20) { callCount++; _tryCall(loop, _return, arg); }
-        else { depth = 0; callCount++; process.nextTick(_tryCall, loop, _return); }
+        else { depth = 0; callCount++; nextTick(function(){ _tryCall(loop, _return, arg) }); }
     }
 }
 function _testRepeatUntilDone(err, done) { return err || done; }
