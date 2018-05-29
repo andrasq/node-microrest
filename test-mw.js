@@ -1,5 +1,6 @@
 'use strict';
 
+var events = require('events');
 var mw = require('./mw');
 
 module.exports = {
@@ -243,6 +244,110 @@ module.exports = {
             })
         },
     },
+    'readBody': {
+        setUp: function(done) {
+            this.req = mockReq();
+            // mock internal fingerprint req.setEncoding('utf8');
+            this.req._readableState = { encoding: 'utf8' };
+            this.req.socket = { end: noop };
+            done();
+        },
+
+        'should gather string chunks': function(t) {
+            var req = this.req;
+            mw.mwReadBody(req, {}, function(err, body) {
+                t.equal(body, 'chunk1chunk2');
+                t.equal(req.body, body);
+                t.done();
+            })
+            req.emit('data', 'chunk1');
+            req.emit('data', 'chunk2');
+            req.emit('end');
+        },
+
+        'should gather buffers': function(t) {
+            var req = this.req;
+            mw.mwReadBody(req, {}, function(err, body) {
+                t.ok(Buffer.isBuffer(body));
+                t.equal(body.toString(), 'chunk1chunk2');
+                t.equal(req.body, body);
+                t.done();
+            })
+            req.emit('data', new Buffer('chunk1'));
+            req.emit('data', new Buffer('chunk2'));
+            req.emit('end');
+        },
+
+        'should gather single buffer': function(t) {
+            var req = this.req;
+            var buff = new Buffer('chunk1');
+            mw.mwReadBody(req, {}, function(err, body) {
+                t.equal(body, buff);
+                t.strictEqual(req.body, body);
+                t.done();
+            })
+            req.emit('data', buff);
+            req.emit('end');
+        },
+
+        'should gather empty string body': function(t) {
+            var req = this.req;
+            mw.mwReadBody(req, {}, function(err, body) {
+                t.equal(body, '');
+                t.strictEqual(req.body, body);
+                t.done();
+            })
+            req.emit('end');
+        },
+
+        'should gather empty buffer body': function(t) {
+            var req = this.req;
+            req._readableState.encoding = null;
+            mw.mwReadBody(req, {}, function(err, body) {
+                t.ok(Buffer.isBuffer(body));
+                t.equal(body.toString(), '');
+                t.strictEqual(req.body, body);
+                t.done();
+            })
+            req.emit('end');
+        },
+
+        'edge cases': {
+            'should do nothing if req.body already set': function(t) {
+                var req = this.req;
+                this.req.body = "abc";
+                var spy = t.spy(req, 'on');
+                mw.mwReadBody(this.req, {}, function(err, body) {
+                    t.ok(!spy.called);
+                    t.equal(body, undefined);
+                    t.equal(req.body, 'abc');
+                    t.done();
+                })
+                this.req.emit('xyz');
+                this.req.emit('end');
+            },
+
+            'should return http error': function(t) {
+                var req = this.req;
+                mw.mwReadBody(req, {}, function(err) {
+                    t.ok(err);
+                    t.equal(err, 'mock http error');
+                    t.done();
+                })
+                setTimeout(function() { req.emit('error', 'mock http error'); }, 2);
+            },
+        },
+    },
+}
+
+function mockReq( opts ) {
+    opts = opts || {};
+    var req = new events.EventEmitter();
+    req.setEncoding = noop;
+    req.end = noop;
+    req.read = noop;
+    for (var k in opts) req[k] = opts[k];
+    return req;
 }
 
 function noop() {}
