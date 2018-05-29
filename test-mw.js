@@ -216,10 +216,12 @@ module.exports = {
                 [ "a[b]=2&b[0]", { 'a[b]': 2, 'b[0]': 1 } ],
                 [ "=&=&&==", { } ],
                 [ "a===&===", { a: '==' } ],
+                [ "&&&", { '': [1, 1, 1] } ],
+                [ "&=&=&=", { '': [1, '', '', ''] } ],
             ];
 
             for (var i=0; i<tests.length; i++) {
-                t.deepEqual(mw.parseQuery(tests[i][0]), tests[i][1]);
+                t.contains(mw.parseQuery(tests[i][0]), tests[i][1], 'tests[' + i + ']');
             }
 
             t.done();

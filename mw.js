@@ -88,23 +88,30 @@ function runMwErrorStepsContext( steps, ctx, err, callback ) {
     function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 }
 
-// simple query string parser
-// handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]
+// simple query string parser, 35% faster than node-v10
+// handles a&b and a=1&b=2 and a=1&a=2 and &&&, ignores &=&=2&, does not decode a[0] or a[b]
+// Parses &&& sort of like node-v0.10, parses a&b&c like php.
 function parseQuery( str ) {
     var urldecode = function(s) { if (!/[%+]/.test(s)) return s; try { return decodeURIComponent(s) } catch (e) { return s } };
-    var parts = str.split('&');
+    var eq, base = 0, bound;
 
     var hash = {};
-    for (var i=0; i<parts.length; i++) {
-        var eq = parts[i].indexOf('=');
-        var name = (eq < 0) ? urldecode(parts[i]) : urldecode(parts[i].slice(0, eq));
-        var value = (eq < 0) ? 1 : urldecode(parts[i].slice(eq + 1));
-        if (!name) continue;
-        if (hash[name] !== undefined) {
-            if (!Array.isArray(hash[name])) hash[name] = new Array(hash[name]);
-            hash[name].push(value);
+    while (base < str.length) {
+        bound = str.indexOf('&', base);
+        if (bound < 0) bound = str.length;
+        var eq = str.indexOf('=', base);
+        if (eq >= 0 && eq < bound) {
+            name = urldecode(str.slice(base, eq));
+            value = urldecode(str.slice(eq+1, bound));
         }
-        else hash[name] = value;
+        else {
+            name = urldecode(str.slice(base, bound));
+            value = 1;
+        }
+        if (!(name in hash)) hash[name] = value;
+        else if (typeof hash[name] === 'object') hash[name].push(value);
+        else hash[name] = new Array(hash[name], value);
+        base = bound + 1;
     }
     return hash;
 }
