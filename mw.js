@@ -11,6 +11,8 @@ var mw = module.exports = {
     repeatUntil: repeatUntil,
     runMwSteps: runMwSteps,
     runMwErrorSteps: runMwErrorSteps,
+    runMwStepsContext: runMwStepsContext,
+    runMwErrorStepsContext: runMwErrorStepsContext,
     parseQuery: parseQuery,
     sendResponse: sendResponse,
     mwReadBody: mwReadBody,
@@ -57,32 +59,34 @@ function _testRepeatUntilDone(err, done) { return err || done; }
 function _tryCall(func, cb, arg) { try { func(cb, arg) } catch (err) { cb(err) } }
 
 // run the middleware stack until one returns next(err) or next(false)
-function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
-function _testMwStepsDone(err, done) { return err || done || err === false; }
 //function _callbackWithoutArg(err, ctx) { ctx.callback(err) }
 function _callbackWithArg(err, ctx) { ctx.callback(err, ctx.arg) }
-function runMwSteps( steps, arg, req, res, callback, invokeCallback ) {
-    var context = { ix: 0, steps: steps, req: req, res: res, callback: callback, arg: arg };
-    //repeatUntil(_runOneMwStep, context, _testMwStepsDone, invokeCallback || _callbackWithArg);
-    runMwStepsContext(context, invokeCallback || _callbackWithArg);
+function runMwSteps( steps, arg, req, res, callback ) {
+    var context = { req: req, res: res, callback: callback, ix: 0, steps: null, arg: arg };
+    runMwStepsContext(steps, context, _callbackWithArg);
 }
-// TODO: use this one:
-function runMwStepsContext( ctx, callback ) {
-    repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, callback);
-}
-
-// pass err to each error handler until one of them succeeds
-// A handler can decline the error (return it back) or can itself error out (return different error)
 function runMwErrorSteps( steps, arg, err, req, res, callback ) {
-    var context = { ix: 0, steps: steps, err: err, req: req, res: res, callback: callback, arg: arg, next: null };
-    repeatUntil(_tryEachErrorHandler, context, _testRepeatUntilDone, _callbackWithArg);
+    var context = { err: err, req: req, res: res, callback: callback, ix: 0, steps: null, arg: arg };
+    runMwErrorStepsContext(steps, context, err, _callbackWithArg);
+}
+function runMwStepsContext( steps, ctx, callback ) {
+    ctx.ix = 0; ctx.steps = steps;
+    repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, callback);
+    function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
+    function _testMwStepsDone(err, done) { return err || done || err === false; }
+}
+function runMwErrorStepsContext( steps, ctx, err, callback ) {
+    ctx.ix = 0; ctx.steps = steps; ctx.err = err;
+    repeatUntil(_tryEachErrorHandler, ctx, _testRepeatUntilDone, callback);
+    // pass err to each error handler until one of them succeeds
+    // A handler can decline the error (return it back) or can itself error out (return different error)
     function _tryEachErrorHandler(next, ctx) {
-        if (ctx.ix >= ctx.steps.length) return next(null, 'done'); else { ctx.next = next; _tryStepContext(ctx, onNext); }
-        function onNext(declined) { if (declined && declined !== ctx.err) _reportErrErr(declined); declined ? ctx.next() : ctx.next(null, 'done') }
+        if (ctx.ix >= ctx.steps.length) return next(null, 'done'); else { ctx.next = next; _tryStepContext(ctx, _tryNext); }
     }
     function _tryStepContext(ctx, cb) { try { ctx.steps[ctx.ix++](ctx.err, ctx.req, ctx.res, cb) } catch (e) { cb(e) } }
+    function _tryNext(declined) { if (declined && declined !== ctx.err) _reportErrErr(declined); declined ? ctx.next() : ctx.next(null, 'done') }
+    function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 }
-function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 
 // simple query string parser
 // handles a&b and a=1&b=2 and a=1&a=2, ignores &&& and &=&=2&, does not decode a[0] or a[b]

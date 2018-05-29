@@ -28,7 +28,9 @@ function Router( options ) {
     this.HttpError = mw.HttpError;
     this.readBody = options.readBody || mw.mwReadBody;
     this.runMwSteps = options.runMwSteps || mw.runMwSteps;
+    this.runMwStepsContext = options.runMwStepsContext || mw.runMwStepsContext;
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
+    this.runMwErrorStepsContext = options.runMwErrorStepsContext || mw.runMwErrorStepsContext;
 }
 
 Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel ) {
@@ -91,39 +93,41 @@ function _reportCbError(err) { warn('microroute: runRoute cb threw:', err) }
 function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(e) } }
 function _reportError(err, msg) { console.error('%s -- microrest-router: %s:', new Date().toISOString(), msg, err) }
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
-    var context = { self: this, req: req, res: res, callback: callback, err1: null, err2: null };
+    var context = { self: this, req: req, res: res, callback: callback, ix: 0, steps: null };
     runMwChain(context);
 
     function runMwChain(ctx) {
         // pre steps are always run, before call is routed
-        ctx.self.runMwSteps(ctx.self.steps.pre, ctx, ctx.req, ctx.res, runDoRouteStep);
+        ctx.self.runMwStepsContext(ctx.self.steps.pre, ctx, runDoRouteStep);
     }
     function runDoRouteStep(err, ctx) {
-        // route if not already routed, read body if not already read
-        if (err) return runErrorSteps(err, ctx);
-        ctx.req._route = ctx.req._route || ctx.self.getRoute(ctx.req.url, ctx.req.method);
-        if (!ctx.req._route) return ctx.callback(ctx.self.HttpError(ctx.self.NotRoutedHttpCode, ctx.req.method + ' ' + ctx.req.url + ': path not routed'));
-        if (ctx.req._route.params) { ctx.req.params = ctx.req.params || {}; for (var k in ctx.req._route.params) ctx.req.params[k] = ctx.req._route.params[k]; }
-        // auto-read the body if not already available
-        // TODO: do not auto-read, make a some mw step read the body
+        if (err) return runErrorRoute(err, ctx);
+        // route if not already routed
+        if (!ctx.req._route) {
+            ctx.req._route = ctx.self.getRoute(ctx.req.url, ctx.req.method);
+            if (!ctx.req._route) return ctx.callback(ctx.self.HttpError(ctx.self.NotRoutedHttpCode, ctx.req.method + ' ' + ctx.req.url + ': path not routed'));
+            if (ctx.req._route.params) { ctx.req.params = ctx.req.params || {}; for (var k in ctx.req._route.params) ctx.req.params[k] = ctx.req._route.params[k]; }
+        }
+        // read body if not already read
+        // TODO: do not auto-read, make a some mw step read
 // TODO: change readBody to return the context
-        (ctx.req.body !== undefined) ? runMwSteps(null, ctx) : ctx.self.readBody(ctx.req, ctx.res, function(err, body) { runMwSteps(err, ctx) });
+        (ctx.req.body !== undefined) ? runMwRoute(null, ctx) : ctx.self.readBody(ctx.req, ctx.res, function(err, body) { runMwRoute(err, ctx) });
     }
-    function runMwSteps(err, ctx) {
+    function runMwRoute(err, ctx) {
         // the call middleware stack includes the relevant 'use' and route steps
-        err ? runErrorSteps(err, ctx) : ctx.self.runMwSteps(req._route.mw || req._route, ctx, req, res, runErrorSteps);
+        err ? runErrorRoute(err, ctx) : ctx.self.runMwStepsContext(req._route.mw || req._route, ctx, runErrorRoute);
     }
-    function runErrorSteps(err1, ctx) {
+    function runErrorRoute(err1, ctx) {
         ctx.req.resume();
         if (!err1 && !ctx.self.steps.post.length) return _tryCb(ctx.callback);
         ctx.err1 = err1;
-        ctx.self.runMwErrorSteps(err1 ? ctx.self.steps.err : [], ctx, err1, ctx.req, ctx.res, runPostSteps);
+        ctx.self.runMwErrorStepsContext(err1 ? ctx.self.steps.err : [], ctx, err1, runPostSteps);
     }
     // post steps are always run, after mw stack and error handler
     function runPostSteps(err2, ctx) {
         if (err2 && err2 !== ctx.err1) _reportError(err2, 'error-mw error');
         ctx.err2 = err2;
-        ctx.self.runMwSteps(ctx.self.steps.post, ctx, ctx.req, ctx.res, runReturnStep);
+        ctx.self.runMwStepsContext(ctx.self.steps.post, ctx, runReturnStep);
     }
     function runReturnStep(err3, ctx) {
         if (err3 && ctx.err1) _reportError(err3, 'post-mw error');
