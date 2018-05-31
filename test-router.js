@@ -17,10 +17,33 @@ module.exports = {
         done();
     },
 
+    'constructor': {
+        'should not require options': function(t) {
+            var router = new Router();
+            t.equal(router.readBody, mw.mwReadBody);
+            t.equal(router.runMwSteps, mw.runMwSteps);
+            t.equal(router.runMwErrorSteps, mw.runMwErrorSteps);
+            t.equal(router.runMwStepsContext, mw.runMwStepsContext);
+            t.equal(router.runMwErrorStepsContext, mw.runMwErrorStepsContext);
+            t.done();
+        },
+
+        'should accept optional mw methods': function(t) {
+            t.equal(new Router({ readBody: this.fn1 }).readBody, this.fn1);
+            t.equal(new Router({ runMwSteps: this.fn1 }).runMwSteps, this.fn1);
+            t.equal(new Router({ runMwErrorSteps: this.fn1 }).runMwErrorSteps, this.fn1);
+            t.equal(new Router({ runMwStepsContext: this.fn1 }).runMwStepsContext, this.fn1);
+            t.equal(new Router({ runMwErrorStepsContext: this.fn1 }).runMwErrorStepsContext, this.fn1);
+            t.done();
+        },
+    },
+
     'getRoute': {
         'should return direct-mapped route': function(t) {
             this.router.setRoute('/test/path', this.fn1);
+            this.router.setRoute('/test/path', 'POST', this.fn2);
             t.deepEqual(this.router.getRoute('/test/path'), [this.fn1]);
+            t.deepEqual(this.router.getRoute('/test/path', 'POST'), [this.fn2]);
             t.done();
         },
 
@@ -104,6 +127,13 @@ module.exports = {
     },
 
     'deleteRoute': {
+        'should delete steps': function(t) {
+            this.router.setRoute('use', this.fn1);
+            this.router.deleteRoute('use');
+            t.deepEqual(this.router.getRoute('use'), []);
+            t.done();
+        },
+
         'should delete matching mapped route': function(t) {
             this.router.setRoute('/test/path', 'GET', [this.fn1]);
             t.ok(this.router.getRoute('/test/path', 'GET'));
@@ -282,7 +312,6 @@ module.exports = {
                 t.done();
             })
         },
-
 
         'returned mw errors': {
 

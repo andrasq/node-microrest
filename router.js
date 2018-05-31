@@ -67,11 +67,7 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
     var mw;
 
     if (!path) return null;                             // path is required
-    if (this.steps[path]) return this.steps[path];
-    if (this.maproutes[path] && (mw = this.maproutes[path][method] || this.maproutes[path]['_ANY_'])) return mw;
-
-    // TODO: maybe match on path prefix, not the whole path (to let mw handle url param extraction)
-
+    if (this.steps[path]) return this.steps[path];      // use-, pre-, err- and post- steps
     mw = this.maproutes[path] && (this.maproutes[path][method] || this.maproutes[path]['_ANY_']);
     if (mw) return mw;                                  // direct-mapped routes
 
