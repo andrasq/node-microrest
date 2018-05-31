@@ -57,11 +57,11 @@ And, just for fun, a fast non-REST remote procedure call library (single socket)
 With the test load generated externally to nodejs by `wrk` (wrk is more efficient than `ab`):
 
     # wrk -d2s -t2 -c8 http://localhost:1337/test1
-    restify     14983.01        ---------------
-    express     22133.72        ----------------------
-    rest_ha     73563.29        --------------------------------------------------------------------------
-    rest        79230.69        -------------------------------------------------------------------------------
-    http        58139.12        ----------------------------------------------------------
+    restify     14983.01        xxxxxxxx
+    express     22133.72        xxxxxxxxxxx
+    rest_ha     73563.29        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    rest        79230.69        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    http        58139.12        xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 Testing
 -------
