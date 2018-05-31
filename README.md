@@ -73,9 +73,10 @@ tests or benchmarks, check out the repo from https://github.com/andrasq/node-mic
 Related Work
 ------------
 
-- [`connect`](https://npmjs.com/package/connect) - basic express-compatible middleware web framework
+- [`connect`](https://npmjs.com/package/connect) - basic middleware web framework
 - [`express`](https://npmjs.com/package/express) - middleware web framework
 - [`microreq`](https://npmjs.com/package/microreq) - tiny web request convenience wrapper
+- [`microrest`](https://npmjs.com/package/microrest) - tiny fast web framework (this one)
 - [`qrpc`](https://npmjs.com/package/qrpc) - very fast remote procedure calls
 - [`restify`](https://npmjs.com/package/express) - middleware web framework
 - [`restiq`](https://npmjs.com/package/restiq) - middleware web framework
