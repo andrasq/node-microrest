@@ -44,15 +44,16 @@ byte response, calls made by nodejs using a keepAlive Agent with default maxSock
 
     qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50 platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
     arch=ia32 mhz=4383 cpuCount=4 cpu="Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
-    restify     12,362 ops/sec   1000 >>>>>
-    express     16,672 ops/sec   1349 >>>>>>>
-    rest_ha     29,533 ops/sec   2389 >>>>>>>>>>>>
-    rest        30,286 ops/sec   2450 >>>>>>>>>>>>
-    http        30,452 ops/sec   2463 >>>>>>>>>>>>
+    name        speed           rate
+    restify    12,194 ops/sec   1000 >>>>>
+    express    16,344 ops/sec   1340 >>>>>>>
+    rest_ha    34,505 ops/sec   2830 >>>>>>>>>>>>>>
+    rest       34,794 ops/sec   2853 >>>>>>>>>>>>>>
+    http       28,980 ops/sec   2377 >>>>>>>>>>>>
 
 And, just for fun, a fast non-REST remote procedure call library (single socket):
 
-    qrpc       135,219 ops/sec  11122 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    qrpc      131,703 ops/sec  10800 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 With the test load generated externally to nodejs by `wrk` (wrk is more efficient than `ab`):
 
