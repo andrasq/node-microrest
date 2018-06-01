@@ -41,6 +41,7 @@ if (cluster.isMaster) {
     var servers = {};
 
     function noop(){}
+    function noopStep(req, res, next){ setImmediate(next) }
     function sendResponse( req, res, next ) {
         //mw.sendResponse(req, res, noop, null, 200, response1, {});
         mw.sendResponse(req, res, noop, null, 200, response1);
@@ -84,6 +85,8 @@ if (cluster.isMaster) {
         // 13.3k/s
         //servers.express.get(path1, function(req, res, next) { res.end(response1); })
         // 23.6k/s (42k/s with wrk)
+        //servers.express.get(path1, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, function(req, res, next) { res.status(200).send(response1); next(); })
+        // 22k/s
     }
 
     if (frameworks.restiq) {
@@ -108,15 +111,13 @@ if (cluster.isMaster) {
     }
 
     if (frameworks.rest_mw) {
-        // 44.1k/s 85.1us
-        servers.rest_mw = frameworks.rest_mw.pkg.createServer({ port: frameworks.rest_mw.port, /*router: new rest.Rest.NanoRouter()*/ });
-        servers.rest_mw._rest.router = new Router();
-        //servers.rest_mw._rest.router.setRoute('/test1', function(req, res, next) { mw.sendResponse(req, res, noop, null, 200, response1); });
-        // 43.3k/s (52k/s w/ wrk)
-        servers.rest_mw._rest.router.setRoute('use', readBody);
-        //servers.rest_mw._rest.router.setRoute('/test1', function test1(req, res, next) { res.end(response1); });
-        servers.rest_mw._rest.router.setRoute('/test1', sendResponse);
-        // 44.1k/s
+        // 65k/s 58.2us
+        var router = new Router();
+        var app = servers.rest_mw = rest({ port: frameworks.rest_mw.port, router: router });
+        app.use(readBody);
+        app.get('/test1', sendResponse);
+        //app.get('/test1', noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, sendResponse);
+        app.listen({ port: frameworks.rest_mw.port });
     }
 
     if (frameworks.rest_ha) {
