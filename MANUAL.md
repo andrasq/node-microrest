@@ -53,6 +53,7 @@ The returned server has added properties
 - _error - any listen error emitted when no callback was provided
 
 Options:
+- `rest` - microrest instance to handle requests
 - `protocol` - 'http:' or 'https:', default http
 - `port` - port to listen on
 - `tryNextPort` - if desired port is busy, try the next one up
