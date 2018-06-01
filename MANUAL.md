@@ -61,8 +61,10 @@ Options:
 
 ### rest.createHandler( [options] )
 
-This is the same function as `rest()`.
-Returns a function `handler(req, res, [next])`.
+Create a small REST app with support for a `use` step and direct-mapped url routes.
+Returns a function `handler(req, res, [next])` with methods `use`, `get/post/put/del`
+etc, and `listen`.  Listening on a socket will create an http server with createServer
+that will use the app to process requests.
 
 ### new rest.Rest( [options] )
 
