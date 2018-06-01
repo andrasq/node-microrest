@@ -19,6 +19,9 @@ module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
 module.exports = toStruct(module.exports);
 
+/**
+ * launch an http server listening for requests, handled by a microrest handler
+ */
 function createServer( options, callback ) {
     options = options || {};
     if (!callback && typeof options === 'function') { callback = options; options = {} };
@@ -56,6 +59,9 @@ function createServer( options, callback ) {
     }
 }
 
+/**
+ * create a microrest app with methods `use` and `get/post/put/del` etc.
+ */
 function createHandler( options ) {
     options = options || {};
     var rest = options.rest || new Rest(options);
@@ -79,15 +85,18 @@ function createHandler( options ) {
     };
 
     return handler;
-}
 
-function sliceMwArgs( dest, args, offset ) {
-    for (var i = offset; i < args.length; i++) dest.push(args[i]);
-    return (dest.length === 1 && Array.isArray(dest[0])) ? dest[0] : dest;
+    function sliceMwArgs( dest, args, offset ) {
+        for (var i = offset; i < args.length; i++) dest.push(args[i]);
+        return (dest.length === 1 && Array.isArray(dest[0])) ? dest[0] : dest;
+    }
 }
 
 // ----------------------------------------------------------------
 
+/**
+ * the microrest implementation class
+ */
 function Rest( options ) {
     options = options || {};
     var self = this;
@@ -109,6 +118,10 @@ function Rest( options ) {
     function _invokeOnRequest(req, res, next) { self._onRequest(req, res, next) }
 }
 
+/**
+ * built-in minimal direct-mapped route matcher for microrest apps,
+ * for when no external router is provided.
+ */
 Rest.NanoRouter = function NanoRouter( ) {
     this.routes = { use: null, err: null, post: null, readBody: Rest.readBody };
     this.matchPrefix = true;
@@ -150,6 +163,9 @@ function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:
 function noop() {};
 
 
+/**
+ * microrest function to handle an http 'request' event
+ */
 Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     var self = this;
     try { req.setEncoding(self.encoding); (self.router)
@@ -166,6 +182,10 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     }
 }
 
+/**
+ * middleware helper function to gather the request body
+ * Microrest calls the request handlers with the body already read.
+ */
 Rest.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
     var body = '', chunks = null, bodySize = 0;
