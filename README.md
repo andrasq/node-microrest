@@ -55,14 +55,15 @@ And, just for fun, a fast non-REST remote procedure call library (single socket)
 
     qrpc      131,703 ops/sec  10800 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-With the test load generated externally to nodejs by `wrk` (wrk is more efficient than `ab`):
+With the test load generated externally to nodejs by [`wrk`](https://github.com/wg/wrk.git):
 
-    # wrk -d2s -t2 -c8 http://localhost:1337/test1
-    restify     14983.01        xxxxxxxx
-    express     22133.72        xxxxxxxxxxx
-    rest_ha     73563.29        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    rest        79230.69        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    http        58139.12        xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    # wrk -d2s -t2 -c50 http://localhost:1337/test1
+    restify:    14957.77        xxxxxxx
+    express:    23179.38        xxxxxxxxxxxx
+    rest_mw:    80719.16        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    rest_ha:    83304.33        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    rest:       89870.42        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    http:       57735.86        xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 Testing
 -------

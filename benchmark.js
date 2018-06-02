@@ -71,7 +71,9 @@ if (cluster.isMaster) {
         servers.restify.listen(frameworks.restify.port);
         servers.restify.use(readBody);
         servers.restify.get(path1, function(req, res, next) { res.send(200, response1); next(); })      // no res.send in restify 5.x and up
+        // 14.5k/s wrk -c100
         //servers.restify.get(path1, function(req, res, next) { res.end(response1); next(); })
+        // 45k/s wrk -c8, 48.9k/s -c100
     }
 
     if (frameworks.express) {
@@ -80,13 +82,13 @@ if (cluster.isMaster) {
         servers.express.listen(frameworks.express.port);
         servers.express.use(readBody);
         servers.express.get(path1, function(req, res, next) { res.status(200).send(response1); next(); })
-        // 12.3k/s 344us stddev 59.1us (22k/s w/ wrk)
+        // 22k/s wrk -c8, -c100
         //servers.express.get(path1, function(req, res, next) { res.status(200).send(response1); })
-        // 13.3k/s
+        // 23k/s wrk -c8
         //servers.express.get(path1, function(req, res, next) { res.end(response1); })
-        // 23.6k/s (42k/s with wrk)
-        //servers.express.get(path1, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, function(req, res, next) { res.status(200).send(response1); next(); })
-        // 22k/s
+        // 40k/s wrk -c8
+        //servers.express.get(path1, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, function(req, res, next) { res.end(response1); next(); })
+        // 22k/s wrk .status.send, 44k/s wrk .end
     }
 
     if (frameworks.restiq) {
@@ -95,10 +97,10 @@ if (cluster.isMaster) {
         servers.restiq.listen(frameworks.restiq.port);
         servers.restiq.use(readBody);
         //servers.restiq.get(path1, function(req, res, next) { res.send(200, response1); next(); })
-        // 38.7k/s w/ wrk
-        //servers.restiq.get(path1, function(req, res, next) { res.end(response1); next(); })
-        servers.restiq.get(path1, sendResponse);
-        // 42k/s w/ wrk
+        // 36k/s wrk -c8
+        servers.restiq.get(path1, function(req, res, next) { res.end(response1); next(); })
+        //servers.restiq.get(path1, sendResponse);
+        // 40k/s wrk -c8
     }
 
     if (frameworks.connect) {
@@ -278,22 +280,24 @@ else {
     function runSuite() {
         console.log("AR: runSuite: req = %sB, res = %sB", request1.length, response1.length);
 
-        var cmdline = 'wrk -d1s -t2 -c8 http://localhost:%d/test1 | grep ^Requests/sec';
+        var cmdline = 'sleep .5 ; wrk -d2s -t2 -c50 http://localhost:%d/test1 | grep ^Requests/sec';
+        //var cmdline = 'sleep .5 ; ab -k -c100 -t1 http://localhost:%d/test1 2>&1 | grep ^Requests';
 
         if (1) {
             console.log("");
             for (var name in frameworks) {
                 var cmd = util.format(cmdline, frameworks[name].port);
-                console.log("# %s %s", name, cmd);
+                console.log("# %s: %s", name, cmd);
                 if (name !== 'qrpc') console.log(String(child_process.execSync(cmd)) + String(child_process.execSync(cmd)));
             }
         }
 
         setTimeout(function() {
 
-            qtimeit.bench.timeGoal = .1;
+            qtimeit.bench.timeGoal = .4;
             qtimeit.bench.visualize = true;
             qtimeit.bench.showRunDetails = false;
+            qtimeit.bench.showTestInfo = true;
             qtimeit.bench.opsPerTest = 100;     // 100 http calls per test
 
             console.log("\nAR: bursts of %d parallel calls\n", parallelCallCount);
@@ -304,12 +308,14 @@ else {
 
             console.log("\nAR: sequential calls:\n");
             qtimeit.bench.opsPerTest = 1;       // 1 http call in per test
+            if (0)
             qtimeit.bench(serialTests, function() {
 
             console.log("AR: Done.");
             })
+            else console.log("AR: Done.");
 
             }) }) })
-        }, 200);
+        }, 500);
     }
 }
