@@ -132,6 +132,21 @@ module.exports = {
             })
         },
 
+        'should work with node-v0.10': function(t) {
+            var savedVersion = process.version;
+            Object.defineProperty(process, 'version', { value: 'v0.10.48' });
+            t.unrequire('./mw');
+            var mw = require('./mw');
+            var ncalls = 0;
+            mw.repeatUntil(function(cb, arg) { cb() }, 19991, function(err, done) { return ++ncalls >= 40 }, function(err, arg) {
+                Object.defineProperty(process, 'version', { value: savedVersion });
+                t.unrequire('./mw');
+                t.equal(arg, 19991);
+                t.done();
+            })
+        },
+    },
+
     'runMwSteps': {
         'should call repeatUntil': function(t) {
             var spy = t.spyOnce(mw, 'repeatUntil');
