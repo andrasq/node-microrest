@@ -131,6 +131,69 @@ module.exports = {
                 t.done();
             })
         },
+
+    'runMwSteps': {
+        'should call repeatUntil': function(t) {
+            var spy = t.spyOnce(mw, 'repeatUntil');
+            var req = {}, res = {};
+            mw.runMwSteps([ function(q,s,n) { n() } ], 1234, req, res, function(err, arg) {
+                t.ifError(err);
+                t.equal(arg, 1234);
+                t.ok(spy.called);
+                t.contains(spy.args[0][1], { req: req, res: res, arg: 1234 });
+                t.done();
+            })
+        },
+
+        'should call all steps': function(t) {
+            var calls = [];
+            var steps = [ function(q,s,n) { calls.push(1); n() }, function(q,s,n) { calls.push(2); n() } ];
+            mw.runMwSteps(steps, 12345, {}, {}, function(err, arg) {
+                t.equal(arg, 12345);
+                t.deepEqual(calls, [1, 2]);
+                t.done();
+            })
+        }
+    },
+
+    'runMwErrorSteps': {
+        'should call repeatUntil': function(t) {
+            var spy = t.spy(mw, 'repeatUntil');
+            var err = {}, req = {}, res = {};
+            mw.runMwErrorSteps([ function(e,q,s,n) { n(e) } ], 4321, err, req, res, function(err2, arg) {
+                t.equal(err2, err);
+                t.equal(arg, 4321);
+                t.ok(spy.called);
+                t.contains(spy.args[0][1], { err: err, req: req, res: res, arg: 4321 });
+                t.done();
+            })
+        },
+
+        'should try each error handler and return declined error': function(t) {
+            var calls = [];
+            var steps = [ function(e,q,s,n) { calls.push(1); n(e) }, function(e,q,s,n) { calls.push(2); n(e) } ];
+            var err = {};
+            mw.runMwErrorSteps(steps, 12345, err, {}, {}, function(err2, arg) {
+                t.equal(err2, err);
+                t.equal(arg, 12345);
+                t.deepEqual(calls, [1, 2]);
+                t.done();
+            })
+        },
+
+        'should try error handlers until one handles the error and return null': function(t) {
+            var calls = [];
+            var steps = [
+                function(e,q,s,n) { calls.push(1); n(e) }, function(e,q,s,n) { calls.push(2); n() }, function(e,q,s,n) { calls.push(3); n() }
+            ];
+            var err = {};
+            mw.runMwErrorSteps(steps, 12345, err, {}, {}, function(err2, arg) {
+                t.equal(err2, null);
+                t.equal(arg, 12345);
+                t.deepEqual(calls, [1, 2]);
+                t.done();
+            })
+        }
     },
 
     'sendResponse': {

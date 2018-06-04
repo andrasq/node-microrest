@@ -59,8 +59,8 @@ function repeatUntil( loop, arg, testStop, callback ) {
     function _return(err, stop) {
         if (++returnCount > callCount) {
             // probably too late to return an error response, but at least warn
-            mw.warn('mw callback already called');
-            return callback(new Error('mw callback already called'), arg);
+            mw.warn('mw callback already called or the callback threw');
+            return callback(new Error('mw callback already called or the callback threw'), arg);
         }
         else if (testStop(err, stop)) { return callback(err, arg); }
         else if (depth++ < 20) { callCount++; _tryCall(loop, _return, arg); }
@@ -78,22 +78,22 @@ function runMwSteps( steps, arg, req, res, callback ) {
     runMwStepsContext(steps, context, _callbackWithArg);
 }
 function runMwErrorSteps( steps, arg, err, req, res, callback ) {
-    var context = { err: err, req: req, res: res, callback: callback, ix: 0, steps: null, arg: arg };
+    var context = { err: err, req: req, res: res, callback: callback, ix: 0, steps: null, arg: arg, next: null };
     runMwErrorStepsContext(steps, context, err, _callbackWithArg);
 }
 function runMwStepsContext( steps, ctx, callback ) {
     ctx.ix = 0; ctx.steps = steps;
-    repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, callback);
+    mw.repeatUntil(_runOneMwStep, ctx, _testMwStepsDone, callback);
     function _runOneMwStep(next, ctx) { (ctx.ix < ctx.steps.length) ? ctx.steps[ctx.ix++](ctx.req, ctx.res, next) : next(null, 'done') }
     function _testMwStepsDone(err, done) { return err || done || err === false; }
 }
 function runMwErrorStepsContext( steps, ctx, err, callback ) {
     ctx.ix = 0; ctx.steps = steps; ctx.err = err;
-    repeatUntil(_tryEachErrorHandler, ctx, _testRepeatUntilDone, callback);
+    mw.repeatUntil(_tryEachErrorHandler, ctx, _testRepeatUntilDone, callback);
     // pass err to each error handler until one of them succeeds
     // A handler can decline the error (return it back) or can itself error out (return different error)
     function _tryEachErrorHandler(next, ctx) {
-        if (ctx.ix >= ctx.steps.length) return next(null, 'done'); else { ctx.next = next; _tryStepContext(ctx, _tryNext); }
+        if (ctx.ix >= ctx.steps.length) return next(ctx.err, 'done'); else { ctx.next = next; _tryStepContext(ctx, _tryNext); }
     }
     function _tryStepContext(ctx, cb) { try { ctx.steps[ctx.ix++](ctx.err, ctx.req, ctx.res, cb) } catch (e) { cb(e) } }
     function _tryNext(declined) { if (declined && declined !== ctx.err) _reportErrErr(declined); declined ? ctx.next() : ctx.next(null, 'done') }
