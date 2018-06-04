@@ -1,9 +1,32 @@
+/**
+ * Copyright (C) 2018 Andras Radics
+ * Licensed under the Apache License, Version 2.0
+ */
+
 'use strict';
 
 var events = require('events');
 var mw = require('./mw');
 
 module.exports = {
+
+    'should export expected mw runner functions': function(t) {
+        var expect = {
+            repeatUntil:1, runMwSteps:1, runMwErrorSteps:1,
+            runMwStepsContext:1, runMwErrorStepsContext:1,
+        };
+        for (var method in expect) t.equal(typeof mw[method], 'function');
+        t.done();
+    },
+
+    'should export expected mw helpers': function(t) {
+        var expect = {
+            buildReadBody:1, buildParseQuery:1, buildParseBody:1,
+            mwReadBody:1, mwParseQuery:1, mwParseBody:1, writeResponse:1,
+        };
+        for (var method in expect) t.equal(typeof mw[method], 'function');
+        t.done();
+    },
 
     'HttpError': {
         'should encode statusCode, message, debug': function(t) {
@@ -243,11 +266,35 @@ module.exports = {
                 t.done();
             })
         },
+
+        'mwParseBody should return empty object if no body': function(t) {
+            var req = { body: 'a=1&b=2'};
+            var parseBody = mw.buildParseBody({ bodyField: 'nonesuch' });
+            parseBody(req, {}, function(err) {
+                t.deepEqual(req.params, {});
+                t.done();
+            })
+        },
     },
+
+    'buildReadBody': {
+        'should build readBody with custom bodySizeLimit': function(t) {
+            var fn = mw.buildReadBody({ bodySizeLimit: 1 });
+            var req = mockReq();
+            fn(req, {}, function(err) {
+                t.ok(err);
+                t.contains(err.debug, 'max body size');
+                t.done();
+            })
+            req.emit('data', 'test');
+            req.emit('end');
+        },
+    },
+
     'readBody': {
         setUp: function(done) {
             this.req = mockReq();
-            // mock internal fingerprint req.setEncoding('utf8');
+            // mock internal fingerprint of req.setEncoding('utf8');
             this.req._readableState = { encoding: 'utf8' };
             this.req.socket = { end: noop };
             done();

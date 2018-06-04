@@ -1,5 +1,8 @@
 /**
  * minimal middleware helpers
+ *
+ * Copyright (C) 2018 Andras Radics
+ * Licensed under the Apache License, Version 2.0
  */
 
 var util = require('util');
@@ -8,16 +11,21 @@ var http = require('http');
 var mw = module.exports = {
     warn: warn,
     HttpError: HttpError,
+
     repeatUntil: repeatUntil,
     runMwSteps: runMwSteps,
     runMwErrorSteps: runMwErrorSteps,
     runMwStepsContext: runMwStepsContext,
     runMwErrorStepsContext: runMwErrorStepsContext,
+
     parseQuery: parseQuery,
+    buildReadBody: buildReadBody,
+    buildParseQuery: buildParseQuery,
+    buildParseBody: buildParseBody,
+    mwReadBody: buildReadBody(),
+    mwParseQuery: buildParseQuery(),
+    mwParseBody: buildParseBody(),
     sendResponse: sendResponse,
-    mwReadBody: mwReadBody,
-    mwParseQuery: mwParseQuery,
-    mwParseBody: mwParseBody,
     writeResponse: writeResponse,
 }
 
@@ -120,41 +128,50 @@ function parseQuery( str ) {
     return hash;
 }
 
-function mwReadBody( req, res, next ) {
-    if (req.body !== undefined) return next();
-    bodySizeLimit = Infinity;
-// TODO: use a builder function to configure bodySizeLimit
-    var body = '', chunks = null, bodySize = 0;
+function buildReadBody( options ) {
+    options = options || {};
+    var bodySizeLimit = options.bodySizeLimit || Infinity;
+    return function mwReadBody( req, res, next ) {
+        if (req.body !== undefined) return next();
+        var body = '', chunks = null, bodySize = 0;
 
-    req.on('data', function(chunk) {
-        if ((bodySize += chunk.length) >= bodySizeLimit) return;
-        if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
-        else (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk));
-    })
-    req.on('error', function(err) {
-        next(err);
-    })
-    req.on('end', function() {
-        if (bodySize > bodySizeLimit) return next((new mw.HttpError(400, 'max body size exceeded')), 1);
-        body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : '');
-        if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
-        req.body = body;
-        next(null, body);
-    })
+        req.on('data', function(chunk) {
+            if ((bodySize += chunk.length) >= bodySizeLimit) return;
+            if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
+            else (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk));
+        })
+        req.on('error', function(err) {
+            next(err);
+        })
+        req.on('end', function() {
+            if (bodySize > bodySizeLimit) return next((new mw.HttpError(400, 'max body size exceeded')), 1);
+            body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : '');
+            if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
+            req.body = body;
+            next(null, body);
+        })
+    }
 }
 
-function mwParseQuery( req, res, next ) {
-    var query = mw.parseQuery(req.query);
-    req.params = req.params || {};
-    for (var k in query) req.params[k] = query[k];
-    next();
+function buildParseQuery( options ) {
+    options = options || {};
+    return function mwParseQuery( req, res, next ) {
+        var query = mw.parseQuery(req.query);
+        req.params = req.params || {};
+        for (var k in query) req.params[k] = query[k];
+        next();
+    }
 }
 
-function mwParseBody( req, res, next ) {
-    var query = req.body ? mw.parseQuery(String(req.body)) : {};
-    req.params = req.params || {};
-    for (var k in query) req.params[k] = query[k];
-    next();
+function buildParseBody( options ) {
+    options = options || {};
+    var bodyField = options.bodyField || 'body';
+    return function mwParseBody( req, res, next ) {
+        var query = req[bodyField] ? mw.parseQuery(String(req[bodyField])) : {};
+        req.params = req.params || {};
+        for (var k in query) req.params[k] = query[k];
+        next();
+    }
 }
 
 function sendResponse( req, res, next, err, statusCode, body, headers ) {
