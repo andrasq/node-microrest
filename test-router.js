@@ -337,6 +337,17 @@ module.exports = {
                 })
             },
 
+            'should return error from readBody mw': function(t) {
+                var calls = this.calls;
+                this.installRoutes();
+                t.stubOnce(this.router, 'readBody').yields('mock readBody error');
+                delete this.req.body;
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.deepEqual(calls, ['pre1', 'pre2', 'err1', 'err2', 'post1', 'post2']);
+                    t.done();
+                })
+            },
+
             'should return error from route mw': function(t) {
                 var calls = this.calls;
                 this.steps.path1 = function(req, res, next) { calls.push('path1'); next('mock route error') };
