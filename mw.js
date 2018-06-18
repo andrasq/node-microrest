@@ -59,17 +59,18 @@ function repeatUntil( loop, arg, testStop, callback ) {
 
     function _return(err, stop) {
         if (++returnCount > callCount) {
-            // probably too late to return an error response, but at least warn
-            mw.warn('mw callback already called or the callback threw');
-            return callback(new Error('mw callback already called or the callback threw'), arg);
+            // probably too late to process an error response, but at least warn
+            mw.warn('callback already called' + (err && ': ' + err || ''));
+            return _tryCallback(callback, new Error('callback already called' + (err && ': ' + err || '')), arg);
         }
-        else if (testStop(err, stop)) { return callback(err, arg); }
+        else if (testStop(err, stop)) { return _tryCallback(callback, err, arg); }
         else if (depth++ < 20) { callCount++; _tryCall(loop, _return, arg); }
         else { depth = 0; callCount++; nextTick(function(){ _tryCall(loop, _return, arg) }); }
     }
 }
 function _testRepeatUntilDone(err, done) { return err || done; }
 function _tryCall(func, cb, arg) { try { func(cb, arg) } catch (err) { cb(err) } }
+function _tryCallback(cb, err, arg) { try { cb(err, arg) } catch (err2) { mw.warn('mw callback threw', err2); throw err2 } }
 
 // run the middleware stack until one returns next(err) or next(false)
 //function _callbackWithoutArg(err, ctx) { ctx.callback(err) }

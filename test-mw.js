@@ -93,7 +93,7 @@ module.exports = {
         },
 
         'should return error on second callback': function(t) {
-            var fn = function(cb){ setImmediate(cb, null, true); setImmediate(cb, 2, true) };
+            var fn = function(cb){ setImmediate(cb, null, true); setImmediate(cb, 2, true); setTimeout(cb, 2); };
             var spy = t.spy({}, 'fn', function(err) {
                 if (spy.callCount === 1) {
                     t.ifError(err);
@@ -102,10 +102,14 @@ module.exports = {
                 if (spy.callCount === 2) {
                     t.ok(err);
                     t.contains(err.message, 'callback already called');
+                }
+                if (spy.callCount === 3) {
+                    t.ok(err);
+                    t.contains(err.message, 'callback already called');
                     t.done();
                 }
             });
-            t.expect(4);
+            t.expect(6);
             mw.repeatUntil(fn, null, spy)
         },
 
