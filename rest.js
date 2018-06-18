@@ -17,6 +17,7 @@ module.exports = createHandler;
 module.exports.Rest = Rest;
 module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
+module.exports.reportError = _reportError;
 module.exports = toStruct(module.exports);
 
 /**
@@ -103,9 +104,11 @@ function Rest( options ) {
 
     this.encoding = options.encoding !== undefined ? options.encoding : 'utf8';
     this.router = options.router;
+    this.emitter = options.emitter;
 
     this.processRequest = options.processRequest;
     this.onError = options.onError || function onError( err, req, res, next ) {
+        // _reportError(err, 'unhandled error', self.emitter);
         var err2 = Rest._sendErrorResponse(res, { code: err.statusCode || 500, message: 'Internal Error', debug: err.debug || err.message });
         if (err2) console.error('%s -- microrest: unable to send error response %s', new Date().toISOString(), err2.message);
         next(err2);
@@ -159,7 +162,7 @@ function _tryStep( fn, req, res, next ) { if (!fn) return next(); try { fn(req, 
 function _tryErrStep( fn, err, req, res, next ) {
     try { fn(err, req, res, next) } catch (err2) { _reportError(err2, 'error mw threw'); next(err) } }
 function _tryCb( cb, err ) { try { cb(err) } catch (e) { _reportError(e, 'mw callback threw'); return e } }
-function _reportError(err, cause) { if (err) console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err) }
+function _reportError(err, cause, emitter) { if (!err) return; emitter ? emitter.emit('error', err) : console.error('%s -- microrest: %s:', new Date().toISOString(), cause, err); }
 function noop() {};
 
 
@@ -176,9 +179,9 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
         })
     } catch (e) { _doReturn(e) }
     function _doReturn(err) {
-        if (!err || !self.onError) return next ? _tryCb(next, err) : null;
-        try { self.onError(err, req, res, function(e2) { _reportError(e2, 'onError returned error'); _tryCb(next || noop, e2 ? err : null) }) }
-        catch (e3) { _reportError(e3, 'onError threw'); _tryCb(next || noop, err) }
+        if (!err) return next ? _tryCb(next) : null;
+        try { self.onError(err, req, res, function(e2) { _reportError(e2, 'onError returned error', self.emitter); _tryCb(next || noop, e2 ? err : null) }) }
+        catch (e3) { _reportError(e3, 'onError threw', self.emitter); _tryCb(next || noop, err) }
     }
 }
 

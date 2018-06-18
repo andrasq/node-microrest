@@ -20,6 +20,7 @@ module.exports = {
             t.equal(typeof rest.Rest, 'function');
             t.equal(typeof rest.createServer, 'function');
             t.equal(typeof rest.createHandler, 'function');
+            t.equal(typeof rest.reportError, 'function');
             t.done();
         },
     },
@@ -423,6 +424,13 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
                 t.equal(a, 1235);
                 t.done();
             }
+        },
+
+        'reportError should emit error if called with an emitter': function(t) {
+            var emitter = { emit: t.stub() };
+            rest.reportError({message: 'mock error'}, 'testing reportError', emitter);
+            t.ok(emitter.emit.called);
+            t.done();
         },
     },
 

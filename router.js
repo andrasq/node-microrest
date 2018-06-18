@@ -87,9 +87,8 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
 // apply the steps defined for the route to the http request
 function _reportCbError(err) { warn('microroute: runRoute cb threw:', err) }
 function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(e) } }
-function _reportError(err, msg) { console.error('%s -- microrest-router: %s:', new Date().toISOString(), msg, err) }
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
-    var context = { self: this, req: req, res: res, callback: callback, ix: 0, steps: null };
+    var context = { self: this, rest: rest, req: req, res: res, callback: callback, ix: 0, steps: null };
     runMwChain(context);
 
     function runMwChain(ctx) {
@@ -121,12 +120,12 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     }
     // post steps are always run, after mw stack and error handler
     function runPostSteps(err2, ctx) {
-        if (err2 && err2 !== ctx.err1) _reportError(err2, 'error-mw error');
+        if (err2 && err2 !== ctx.err1 && ctx.rest && typeof ctx.rest.reportError === 'function') ctx.rest.reportError(err2, 'error-mw error');
         ctx.err2 = err2;
         ctx.self.runMwStepsContext(ctx.self.steps.post, ctx, runReturnStep);
     }
     function runReturnStep(err3, ctx) {
-        if (err3 && ctx.err1) _reportError(err3, 'post-mw error');
+        if (err3 && ctx.err1 && ctx.rest && typeof ctx.rest.reportError === 'function') _reportError(err3, 'post-mw error');
         _tryCb(ctx.callback, ctx.err1 || err3 || null);
     }
 }

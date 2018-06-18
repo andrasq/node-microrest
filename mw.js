@@ -48,6 +48,7 @@ function warn( ) {
     console.warn("%s -- microrest: %s", new Date().toISOString(), util.format.apply(util, argv));
 }
 
+// repeatUntil adapted from aflow:
 // node-v8: 74m/s tracking callCount (81m/s tracking, but 40) (loop of 100m)
 // but only 73m/s breaking up stack with a bound function and 22m/s with setImmediate
 function repeatUntil( loop, arg, testStop, callback ) {
