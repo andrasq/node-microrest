@@ -121,8 +121,8 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     }
     // post steps are always run, after mw stack and error handler
     function runPostSteps(err2, ctx) {
+        ctx.err2 = err2 = ctx.err2 || err2;
         if (err2 && err2 !== ctx.err1 && ctx.rest && typeof ctx.rest.reportError === 'function') ctx.rest.reportError(err2, 'error-mw error');
-        ctx.err2 = err2;
         ctx.self.runMwStepsContext(ctx.self.steps.post, ctx, runReturnStep);
     }
     function runReturnStep(err3, ctx) {

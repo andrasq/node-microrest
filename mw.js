@@ -90,15 +90,18 @@ function runMwStepsContext( steps, ctx, callback ) {
     function _testMwStepsDone(err, done) { return err || done || err === false; }
 }
 function runMwErrorStepsContext( steps, ctx, err, callback ) {
-    ctx.ix = 0; ctx.steps = steps; ctx.err = err;
+    ctx.ix = 0; ctx.steps = steps; ctx.err = err; ctx.err2 = null;
     mw.repeatUntil(_tryEachErrorHandler, ctx, _testRepeatUntilDone, callback);
     // pass err to each error handler until one of them succeeds
     // A handler can decline the error (return it back) or can itself error out (return different error)
     function _tryEachErrorHandler(next, ctx) {
-        if (ctx.ix >= ctx.steps.length) return next(ctx.err, 'done'); else { ctx.next = next; _tryStepContext(ctx, _tryNext); }
+        if (ctx.ix >= ctx.steps.length) return next(ctx.err2 || ctx.err, 'done'); else { ctx.next = next; _tryStepContext(ctx, _tryNext); }
     }
+    // TODO: double-check how an error mw error should be handled.  We suppress it and set err2, but maybe we should abort
+    // TODO: gather all err2 into an array, not just the first one
     function _tryStepContext(ctx, cb) { try { ctx.steps[ctx.ix++](ctx.err, ctx.req, ctx.res, cb) } catch (e) { cb(e) } }
-    function _tryNext(declined) { if (declined && declined !== ctx.err) _reportErrErr(declined); declined ? ctx.next() : ctx.next(null, 'done') }
+    function _tryNext(declined) { if (declined && declined !== ctx.err) { if (!ctx.err2) ctx.err2 = declined; _reportErrErr(declined); }
+        declined ? ctx.next() : ctx.next(null, 'done') }
     function _reportErrErr(err2) { mw.warn('error mw error:', err2) }
 }
 
