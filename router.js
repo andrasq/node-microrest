@@ -99,6 +99,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         if (err) return runErrorRoute(err, ctx);
         // route if not already routed
         if (!ctx.req._route) {
+// TODO: FIXME: always run the 'use' steps, do not combine with routed path
             ctx.req._route = ctx.self.getRoute(ctx.req.url, ctx.req.method);
             if (!ctx.req._route) return ctx.callback(ctx.self.HttpError(ctx.self.NotRoutedHttpCode, ctx.req.method + ' ' + ctx.req.url + ': path not routed'));
             if (ctx.req._route.params) { ctx.req.params = ctx.req.params || {}; for (var k in ctx.req._route.params) ctx.req.params[k] = ctx.req._route.params[k]; }

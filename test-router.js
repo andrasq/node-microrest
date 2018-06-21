@@ -313,6 +313,33 @@ module.exports = {
             })
         },
 
+        'should use _route set by mw step': function(t) {
+            var calls = this.calls;
+            var route1 = function(req, res, next) { calls.push('mw-route1'); next() };
+            var route2 = function(req, res, next) { calls.push('mw-route2'); next() };
+            this.router.setRoute('pre', this.steps.use1);
+            this.router.setRoute('pre', function(req, res, next) { calls.push('mw-pre'); req._route = [route1, route2]; next() });
+            this.router.setRoute('use', this.steps.use2);
+            this.router.setRoute('/test/path', this.steps.path1);
+            this.router.runRoute({}, this.req, {}, function(err) {
+                // FIXME: setting _route skips the 'use' steps
+                // t.deepEqual(calls, ['use1', 'mw-pre', 'use2', 'mw-route1', 'mw-route2']);
+                t.deepEqual(calls, ['use1', 'mw-pre', 'mw-route1', 'mw-route2']);
+                t.done();
+            })
+        },
+
+        'should extract route params': function(t) {
+            this.router.setRoute('/:foo/:bar/path', function(req, res, next) { next() });
+            var req = this.req;
+            req.url = '/foobar/1234/path';
+            delete req.params;
+            this.router.runRoute({}, req, {}, function(err) {
+                t.deepStrictEqual(req.params, { foo: 'foobar', bar: '1234' });
+                t.done();
+            })
+        },
+
         'returned mw errors': {
 
             'should return error from pre step': function(t) {
