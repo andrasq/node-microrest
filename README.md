@@ -33,7 +33,7 @@ To use as a light-weight app:
 Documentation
 -------------
 
-Detailed documenation is in the [manual](MANUAL.md)
+Detailed documenation is in the [manual](https://github.com/andrasq/node-microrest/blob/master/MANUAL.md)
 
 
 Benchmark
