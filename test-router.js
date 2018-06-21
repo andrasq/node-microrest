@@ -404,11 +404,30 @@ module.exports = {
                 this.steps.err2 = function(err, req, res, next) { calls.push('err2'); next('mock err error 2') };
                 this.installRoutes();
                 var spy = t.spy(process.stderr, 'write');
-                this.router.runRoute({}, this.req, {}, function(err) {
+                var rest = { reportError: t.stub() };
+                this.router.runRoute(rest, this.req, {}, function(err) {
                     spy.restore();
+                    t.equal(err, 'mock use error');
                     t.deepEqual(calls, ['pre1', 'pre2', 'use1', 'err1', 'err2', 'post1', 'post2']);
                     t.contains(spy.args[0][0], 'mock err error 1');
                     t.contains(spy.args[1][0], 'mock err error 2');
+                    t.done();
+                })
+            },
+
+            'should report error from post-err post step': function(t) {
+                var calls = this.calls;
+                this.router.setRoute('use', function(req, res, next) { calls.push('use1'); next('mock use error') });
+                this.router.setRoute('post', function(req, res, next) { calls.push('post1'); next('mock post error') });
+                var spy = t.spy(process.stderr, 'write');
+                var rest = { reportError: t.stub() };
+                this.router.setRoute('/test/path', this.steps.path1);
+                this.router.runRoute(rest, this.req, {}, function(err) {
+                    spy.restore();
+                    t.equal(err, 'mock use error');
+                    t.deepEqual(calls, ['use1', 'post1']);
+                    t.ok(rest.reportError.callCount, 2);
+                    t.deepEqual(rest.reportError.args[0], ['mock post error', 'post-mw error']);
                     t.done();
                 })
             },

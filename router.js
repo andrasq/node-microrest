@@ -99,17 +99,17 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         if (err) return runErrorRoute(err, ctx);
         // route if not already routed
         if (!ctx.req._route) {
-// TODO: FIXME: always run the 'use' steps, do not combine with routed path
             ctx.req._route = ctx.self.getRoute(ctx.req.url, ctx.req.method);
             if (!ctx.req._route) return ctx.callback(ctx.self.HttpError(ctx.self.NotRoutedHttpCode, ctx.req.method + ' ' + ctx.req.url + ': path not routed'));
             if (ctx.req._route.params) { ctx.req.params = ctx.req.params || {}; for (var k in ctx.req._route.params) ctx.req.params[k] = ctx.req._route.params[k]; }
         }
         // read body if not already read
         // TODO: do not auto-read, make a some mw step read
-// TODO: change readBody to return the context
+        // TODO: change readBody to return the context
         (ctx.req.body !== undefined) ? runMwRoute(null, ctx) : ctx.self.readBody(ctx.req, ctx.res, function(err, body) { runMwRoute(err, ctx) });
     }
     function runMwRoute(err, ctx) {
+        // TODO: FIXME: always run the 'use' steps, do not combine with routed path
         // the call middleware stack includes the relevant 'use' and route steps
         err ? runErrorRoute(err, ctx) : ctx.self.runMwStepsContext(req._route.mw || req._route, ctx, runErrorRoute);
     }
