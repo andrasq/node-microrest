@@ -1,5 +1,6 @@
 /**
  * minimal tiny rest server
+ * https://github.com/andrasq/node-microrest
  *
  * Copyright (C) 2018 Andras Radics
  * Licensed under the Apache License, Version 2.0
@@ -20,7 +21,40 @@ module.exports.createHandler = createHandler;
 module.exports.reportError = _reportError;
 module.exports = toStruct(module.exports);
 
-/**
+/*
+ * create a microrest app with methods `use` and `get/post/put/del` etc.
+ */
+function createHandler( options ) {
+    options = options || {};
+    var rest = options.rest || new Rest(options);
+    var handler = rest.onRequest;
+    handler.rest = rest;
+
+    var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
+    function useRouter() { return rest.router ? rest.router : rest.router = new Rest.NanoRouter() }
+    handler.use = function use(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
+    httpMethods.forEach(function(method) {
+        var fn = function( path, mw ) { useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
+        handler[method] = Object.defineProperty(fn, 'name', { value: method });
+    })
+    handler.del = handler.delete;
+
+    handler.listen = function(options, callback) {
+        if (typeof options === 'function') { callback = options; options = 0; }
+        options = (options > 0 || options === 0) ? { port: +options } : options ? options : { port: 0 };
+        options.rest = handler.rest;
+        return module.exports.createServer(options, callback)
+    };
+
+    return handler;
+
+    function sliceMwArgs( dest, args, offset ) {
+        for (var i = offset; i < args.length; i++) dest.push(args[i]);
+        return (dest.length === 1 && Array.isArray(dest[0])) ? dest[0] : dest;
+    }
+}
+
+/*
  * launch an http server listening for requests, handled by a microrest handler
  */
 function createServer( options, callback ) {
@@ -60,42 +94,9 @@ function createServer( options, callback ) {
     }
 }
 
-/**
- * create a microrest app with methods `use` and `get/post/put/del` etc.
- */
-function createHandler( options ) {
-    options = options || {};
-    var rest = options.rest || new Rest(options);
-    var handler = rest.onRequest;
-    handler.rest = rest;
-
-    var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
-    function useRouter() { return rest.router ? rest.router : rest.router = new Rest.NanoRouter() }
-    handler.use = function use(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
-    httpMethods.forEach(function(method) {
-        var fn = function( path, mw ) { useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
-        handler[method] = Object.defineProperty(fn, 'name', { value: method });
-    })
-    handler.del = handler.delete;
-
-    handler.listen = function(options, callback) {
-        if (typeof options === 'function') { callback = options; options = 0; }
-        options = (options > 0 || options === 0) ? { port: +options } : options ? options : { port: 0 };
-        options.rest = handler.rest;
-        return module.exports.createServer(options, callback)
-    };
-
-    return handler;
-
-    function sliceMwArgs( dest, args, offset ) {
-        for (var i = offset; i < args.length; i++) dest.push(args[i]);
-        return (dest.length === 1 && Array.isArray(dest[0])) ? dest[0] : dest;
-    }
-}
-
 // ----------------------------------------------------------------
 
-/**
+/*
  * the microrest implementation class
  */
 function Rest( options ) {
@@ -121,7 +122,7 @@ function Rest( options ) {
     function _invokeOnRequest(req, res, next) { self._onRequest(req, res, next) }
 }
 
-/**
+/*
  * built-in minimal direct-mapped route matcher for microrest apps,
  * for when no external router is provided.
  */
@@ -166,7 +167,7 @@ function _reportError(err, cause, emitter) { if (!err) return; emitter ? emitter
 function noop() {};
 
 
-/**
+/*
  * microrest function to handle an http 'request' event
  */
 Rest.prototype._onRequest = function _onRequest( req, res, next ) {
@@ -185,7 +186,7 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     }
 }
 
-/**
+/*
  * middleware helper function to gather the request body
  * Microrest calls the request handlers with the body already read.
  */
