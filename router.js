@@ -126,7 +126,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         ctx.self.runMwStepsContext(ctx.self.steps.post, ctx, runReturnStep);
     }
     function runReturnStep(err3, ctx) {
-        if (err3 && ctx.err1 && ctx.rest && typeof ctx.rest.reportError === 'function') _reportError(err3, 'post-mw error');
+        if (err3 && ctx.err1 && ctx.rest && typeof ctx.rest.reportError === 'function') ctx.rest.reportError(err3, 'post-mw error');
         _tryCb(ctx.callback, ctx.err1 || err3 || null);
     }
 }
