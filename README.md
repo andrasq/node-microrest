@@ -29,6 +29,27 @@ To use as a light-weight app:
         // app is listening on port `serverInfo.port`
     })
 
+To use as a fully routed app with middleware steps:
+
+    const rest = require('microrest');
+    const mw = require('microrest/mw');
+    const Router = require('microrest/router');
+
+    const app = rest({ router: new Router() });
+    app.use(mw.readBody);
+    app.use(mw.parseQuery);
+    app.get('/hello/:arg1/:arg2', (req, res, next) => {
+        // request body available in req.body
+        // route and query params available in req.params
+        next();
+    })
+    app.listen(1337, (err, serverInfo) => {
+        // app is listening on port `serverInfo.port`
+    })
+
+To embed, copy `rest.js` (and possibly also mw.js and router.js) into your own library,
+and use as an internal component.
+
 
 Documentation
 -------------
@@ -78,7 +99,7 @@ Related Work
 - [`connect`](https://npmjs.com/package/connect) - basic middleware web framework
 - [`express`](https://npmjs.com/package/express) - middleware web framework
 - [`microreq`](https://npmjs.com/package/microreq) - tiny web request convenience wrapper
-- [`microrest`](https://npmjs.com/package/microrest) - tiny fast web framework (this one)
+- [`microrest`](https://npmjs.com/package/microrest) - tiny very fast web framework (this one)
 - [`qrpc`](https://npmjs.com/package/qrpc) - very fast remote procedure calls
 - [`restify`](https://npmjs.com/package/express) - middleware web framework
-- [`restiq`](https://npmjs.com/package/restiq) - middleware web framework
+- [`restiq`](https://npmjs.com/package/restiq) - fast middleware web framework
