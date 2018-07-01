@@ -17,8 +17,8 @@ var mw = module.exports = {
     runMwErrorSteps: runMwErrorSteps,
     runMwStepsContext: runMwStepsContext,
     runMwErrorStepsContext: runMwErrorStepsContext,
-
     parseQuery: parseQuery,
+
     buildReadBody: buildReadBody,
     buildParseQuery: buildParseQuery,
     buildParseBody: buildParseBody,
@@ -161,6 +161,10 @@ function buildReadBody( options ) {
 function buildParseQuery( options ) {
     options = options || {};
     return function mwParseQuery( req, res, next ) {
+        var qmark = req.url.indexOf('?');                       // /p/ath ? q=uery # hash
+        var hmark = req.url.indexOf('#', qmark + 1);
+        hmark = (hmark + 1) ? hmark : req.url.length;
+        req.query = (qmark >= 0) ? req.url.slice(qmark + 1, hmark) : "";
         var query = mw.parseQuery(req.query);
         req.params = req.params || {};
         for (var k in query) req.params[k] = query[k];

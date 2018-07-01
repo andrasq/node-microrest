@@ -149,8 +149,11 @@ Router.prototype._buildCapturingRegex = function _buildCapturingRegex( routeName
         routeName = routeName.slice(match.index + match[0].length);
     }
     pattern += this._regexEscape(routeName);
-    // the route matches if the query string ends here or continues only past / or ?
-    pattern += "([/?].*)?$";
+    // gather any extra path components into _tail
+    names.push('_tail');
+    pattern += "(([/][^?#]*)?)";
+    // the route matches if the query string ends here or continues only past / or ? or #
+    pattern += "(([/?#].*))?$";
     return {patt: new RegExp(pattern), names: names};
 }
 
