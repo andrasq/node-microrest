@@ -77,6 +77,7 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
         if (match && (mw = (rex.methods[method] || rex.methods['_ANY_']))) {
             var route = { mw: mw, params: {}, path: rex.path };
             for (var name in rex.names) route.params[name] = match[rex.names[name]];
+// TODO: return longest match, not first match.  Eg, /this/is/a vs /this/is/a/long (can find min(tail.length))
             return route;
         }
     }
@@ -137,23 +138,23 @@ Router.prototype.makeCapturingRegex = function makeCapturingRegex( rex, path ) {
     for (var i=0; i<patt.names.length; i++) rex.names[patt.names[i]] = i + 1;
 }
 
-// borrowed from restiq: (pass in routeName = path)
+// adapted from restiq: (pass in routeName = path)
 // build a regex to match the routeName and extract any /:param parameters
 Router.prototype._buildCapturingRegex = function _buildCapturingRegex( routeName ) {
     var match, names = new Array();
     var pattern = "^";
     while ((match = routeName.match(/\/:[^/]*/))) {
         if (match.index > 0) pattern += this._regexEscape(routeName.slice(0, match.index));
-        pattern += '\\/([^/]*)';
-        names.push(match[0].slice(2));
+        var name = match[0].slice(2), matchTail = (name[0] === '*');
+        if (matchTail) name = name.slice(1) || '*';
+        names.push(name);
+        if (matchTail) pattern += "(/[^?#]*)?";         // '/:*' matches rest of path
+        else pattern += '\\/([^/]*)';                   // '/:name' matches one path component
         routeName = routeName.slice(match.index + match[0].length);
     }
     pattern += this._regexEscape(routeName);
-    // gather any extra path components into _tail
-    names.push('_tail');
-    pattern += "(([/][^?#]*)?)";
-    // the route matches if the query string ends here or continues only past / or ? or #
-    pattern += "(([/?#].*))?$";
+    // the route matches if the url ends here (no /*-tail) or continues only past ? or #
+    pattern += "([?#]|$)";
     return {patt: new RegExp(pattern), names: names};
 }
 

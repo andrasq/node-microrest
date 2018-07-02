@@ -54,6 +54,42 @@ module.exports = {
             t.done();
         },
 
+        'should exact match if tail is not gathered': function(t) {
+            this.router.setRoute('/:name1/:name2/other', this.fn2);
+            t.ok(this.router.getRoute('/test/path/other'));
+            t.ok(!this.router.getRoute('/test/path/notother'));
+            var route = this.router.getRoute('/test/path/other/stuff');
+            t.ok(!route);
+            t.done();
+        },
+
+        'should prefix match if tail is gathered': function(t) {
+            this.router.setRoute('/:name1/:name2/:*', this.fn2);
+            var route = this.router.getRoute('/test/path/other/stuff');
+            t.ok(route);
+            t.equal(route.params['*'], '/other/stuff');
+            t.ok(this.router.getRoute('/othertest/path/otherother/stuff'));
+            t.ok(this.router.getRoute('/test/otherpath/other/otherstuff'));
+            t.done();
+        },
+
+        'should gather tail into named var': function(t) {
+            this.router.setRoute('/:name1/:name2/:*tail', this.fn2);
+            var route = this.router.getRoute('/test/path/other/stuff');
+            t.ok(route);
+            t.equal(route.params['tail'], '/other/stuff');
+            t.done();
+        },
+
+        'should prefix-suffix match if tail is gathered in middle': function(t) {
+            this.router.setRoute('/:name1/:name2/:*/:name3/stuff', this.fn2);
+            var route = this.router.getRoute('/test/path/lots/of/other/stuff');
+            t.ok(route);
+            t.deepEqual(route.params, { name1: 'test', name2: 'path', name3: 'other', '*': '/lots/of' });
+            t.ok(!this.router.getRoute('/test/path/lots/of/other/notstuff'));
+            t.done();
+        },
+
         'should return null if route not mapped': function(t) {
             t.equal(this.router.getRoute(), null);
             t.equal(this.router.getRoute('/other/path'), null);
