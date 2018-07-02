@@ -164,8 +164,8 @@ function buildParseQuery( options ) {
         var qmark = req.url.indexOf('?');                       // /p/ath ? q=uery # hash
         var hmark = req.url.indexOf('#', qmark + 1);
         hmark = (hmark + 1) ? hmark : req.url.length;
-        req.query = (qmark >= 0) ? req.url.slice(qmark + 1, hmark) : "";
-        var query = mw.parseQuery(req.query);
+        var query = mw.parseQuery((qmark >= 0) ? req.url.slice(qmark + 1, hmark) : "");
+        // TODO: express sets query[k]
         req.params = req.params || {};
         for (var k in query) req.params[k] = query[k];
         next();

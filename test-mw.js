@@ -333,10 +333,26 @@ module.exports = {
             t.done();
         },
 
-        'mwParseQuery should parse req.query': function(t) {
-            var req = { query: 'a=1&b=t%77o&' };
+        'mwParseQuery should parse url querystring query': function(t) {
+            var req = { url: '/path?a=1&b=t%77o&' };
             mw.mwParseQuery(req, {}, function(err) {
                 t.deepEqual(req.params, { a: 1, b: 'two' });
+                t.done();
+            })
+        },
+
+        'mwParseQuery should not parse #hash': function(t) {
+            var req = { url: '/path?a=1&b=t%77o&#hash=tag' };
+            mw.mwParseQuery(req, {}, function(err) {
+                t.deepEqual(req.params, { a: 1, b: 'two' });
+                t.done();
+            })
+        },
+
+        'mwParseQuery should allow missing query': function(t) {
+            var req = { url: '/path#hash=tag' };
+            mw.mwParseQuery(req, {}, function(err) {
+                t.deepEqual(req.params, { });
                 t.done();
             })
         },
