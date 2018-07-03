@@ -21,10 +21,8 @@ var mw = module.exports = {
 
     buildReadBody: buildReadBody,
     buildParseQuery: buildParseQuery,
-    buildParseBody: buildParseBody,
     mwReadBody: buildReadBody(),
     mwParseQuery: buildParseQuery(),
-    mwParseBody: buildParseBody(),
     sendResponse: sendResponse,
     writeResponse: writeResponse,
 }
@@ -166,17 +164,6 @@ function buildParseQuery( options ) {
         hmark = (hmark + 1) ? hmark : req.url.length;
         var query = mw.parseQuery((qmark >= 0) ? req.url.slice(qmark + 1, hmark) : "");
         // TODO: express sets query[k]
-        req.params = req.params || {};
-        for (var k in query) req.params[k] = query[k];
-        next();
-    }
-}
-
-function buildParseBody( options ) {
-    options = options || {};
-    var bodyField = options.bodyField || 'body';
-    return function mwParseBody( req, res, next ) {
-        var query = req[bodyField] ? mw.parseQuery(String(req[bodyField])) : {};
         req.params = req.params || {};
         for (var k in query) req.params[k] = query[k];
         next();

@@ -21,8 +21,8 @@ module.exports = {
 
     'should export expected mw helpers': function(t) {
         var expect = {
-            buildReadBody:1, buildParseQuery:1, buildParseBody:1,
-            mwReadBody:1, mwParseQuery:1, mwParseBody:1, writeResponse:1,
+            buildReadBody:1, buildParseQuery:1,
+            mwReadBody:1, mwParseQuery:1, writeResponse:1,
         };
         for (var method in expect) t.equal(typeof mw[method], 'function');
         t.done();
@@ -127,11 +127,15 @@ module.exports = {
         },
 
         'should be fast': function(t) {
-            console.time('repeatUntil 10m');
-            var n = 0;
-            function iterator(cb, arg) { cb(null, n++ >= 10000000) }
+            var mark = process.hrtime();
+            var startTime = process.hrtime();
+            var n = 0, limit = 1e6;
+            function iterator(cb, arg) { cb(null, n++ >= limit) }
             mw.repeatUntil(iterator, null, function(err) {
-                console.timeEnd('repeatUntil 10m', n);
+                var endTime = process.hrtime();
+                var elapsed = (endTime[0] - startTime[0]) * 1000 + (endTime[1] - startTime[1]) / 1e6;
+                var overhead = (startTime[0] - mark[0]) * 1000 + (startTime[1] - mark[1]) / 1e6;
+                console.log("repeatUntil: %d in %d - %d ms, %d/ms", limit, elapsed, overhead, limit / (elapsed - overhead));
                 t.done();
             })
         },
@@ -353,23 +357,6 @@ module.exports = {
             var req = { url: '/path#hash=tag' };
             mw.mwParseQuery(req, {}, function(err) {
                 t.deepEqual(req.params, { });
-                t.done();
-            })
-        },
-
-        'mwParseBody should parse req.body': function(t) {
-            var req = { body: 'a=1&b=t%77o&' };
-            mw.mwParseBody(req, {}, function(err) {
-                t.deepEqual(req.params, { a: 1, b: 'two' });
-                t.done();
-            })
-        },
-
-        'mwParseBody should return empty object if no body': function(t) {
-            var req = { body: 'a=1&b=2'};
-            var parseBody = mw.buildParseBody({ bodyField: 'nonesuch' });
-            parseBody(req, {}, function(err) {
-                t.deepEqual(req.params, {});
                 t.done();
             })
         },
