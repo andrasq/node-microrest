@@ -36,8 +36,8 @@ To use as a fully routed app with middleware steps:
     const Router = require('microrest/router');
 
     const app = rest({ router: new Router() });
-    app.use(mw.mwReadBody);
     app.use(mw.mwParseQuery);
+    app.use(mw.mwReadBody);
     app.get('/hello/:arg1/:arg2', (req, res, next) => {
         // request body available in req.body
         // route and query params available in req.params
