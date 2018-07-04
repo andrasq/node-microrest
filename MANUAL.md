@@ -12,11 +12,9 @@ Components:
 rest.js
 =======
 
+Rest builds request handler apps.
+
     const rest = require('microrest');
-
-### rest = require('microrest')
-
-Return a request handler builder.
 
 ### rest( [options] )
 
@@ -194,18 +192,18 @@ mw.js
 
     const mw = require('microrest/mw');
 
-### warn( )
+### mw.warn( )
 
 Uses `console.warn` to print a notice to the console, but tags the message with a
 timestamp and "microrest:".
 
-### HttpError( statusCode, debugMessage, details )
+### mw.HttpError( statusCode, debugMessage, details )
 
 Construct a `new Error` with additional properties `statusCode`, `debug` and
 `details`.  The error `.message` is looked up from the status code, eg `404 Not Found`
 or `777 Internal Error`.
 
-### sendResponse( req, res, next, err, statusCode, body, headers )
+### mw.sendResponse( req, res, next, err, statusCode, body, headers )
 
 Send a response back to the caller.  If `err` is an object it will send an error
 response, else will set the specified headers, if any, and send the response body.
@@ -214,7 +212,7 @@ json-encoded first.
 
 `sendRespone` handles headers efficiently and is a fast, low overhead function.
 
-### buildParseQuery( [options] )
+### mw.buildParseQuery( [options] )
 
 Construct a function that will parse the query string contained in `req.url` and place
 name-value pairs into `req.params`.  It works similarly to `querystring` but for
@@ -227,7 +225,7 @@ Examples:
     "a=1&b"     => { a: '1', b: 1 }     // no value is set to Number(1)
     "a=1&a=2"   => { a: [ '1', '2' ] }  // repeated values gathered into an array
 
-### buildReadBody( [options] )
+### mw.buildReadBody( [options] )
 
 Construct a function that will wait for the request body to arrive and set `req.body`.
 Returns a middleware step `readBody(req, res, next)`.
