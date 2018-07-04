@@ -2,7 +2,7 @@
   "name": "microrest",
   "version": "0.5.0",
   "description": "tiny embeddable REST web framework",
-  "keywords": ["micro", "nano", "framework", "middleware", "embeddable", "fast"],
+  "keywords": ["micro", "nano", "framework", "middleware", "REST", "embeddable", "fast"],
   "main": "rest.js",
   "license": "Apache-2.0",
   "author": "Andras",
