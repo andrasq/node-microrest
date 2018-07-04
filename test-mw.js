@@ -249,6 +249,26 @@ module.exports = {
             t.equal(this.res.statusCode, 201);
             t.deepEqual(spyEnd.args[0], ['{"mock":1,"body":2}']);
 
+            var spyEnd = t.spyOnce(this.res, 'end');
+            mw.sendResponse(this.req, this.res, noop, null, 202, null);
+            t.equal(this.res.statusCode, 202);
+            t.deepEqual(spyEnd.args[0], []);
+
+            var spyEnd = t.spyOnce(this.res, 'end');
+            mw.sendResponse(this.req, this.res, noop, null, 202);
+            t.equal(this.res.statusCode, 202);
+            t.deepEqual(spyEnd.args[0], []);
+
+            var spyEnd = t.spyOnce(this.res, 'end');
+            mw.sendResponse(this.req, this.res, noop, null, 203, false);
+            t.equal(this.res.statusCode, 203);
+            t.deepEqual(spyEnd.args[0], ['false']);
+
+            var spyEnd = t.spyOnce(this.res, 'end');
+            mw.sendResponse(this.req, this.res, noop, null, 204, 0);
+            t.equal(this.res.statusCode, 204);
+            t.deepEqual(spyEnd.args[0], [0]);
+
             t.done();
         },
 

@@ -184,7 +184,8 @@ function writeResponse( res, statusCode, body, headers ) {
         body = JSON.stringify(body);
         headers = undefined;
     }
-    else if (typeof body !== 'string' && (body && body.constructor !== String) && !Buffer.isBuffer(body)) {
+    else if (typeof body === 'string' || (body && body.constructor === String) || Buffer.isBuffer(body)) body = body;
+    else if (body != null) {
         var json = tryJsonEncode(body);
         if (! (json instanceof Error)) body = json;
         else return mw.writeResponse(res, new mw.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body)));
@@ -195,5 +196,6 @@ function writeResponse( res, statusCode, body, headers ) {
     function tryJsonEncode( body ) {
         try { return JSON.stringify(body) } catch (err) { return err } }
     function tryWriteResponse( res, scode, hdr, body ) {
-        try { res.statusCode = scode || 200; for (var k in hdr) res.setHeader(k, hdr[k]); res.end(body) } catch (err) { return err } }
+        try { res.statusCode = scode || 200; for (var k in hdr) res.setHeader(k, hdr[k]); body != null ? res.end(body) : res.end() }
+        catch (err) { return err } }
 }
