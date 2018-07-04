@@ -146,8 +146,7 @@ Router.prototype._buildCapturingRegex = function _buildCapturingRegex( routeName
     while ((match = routeName.match(/\/:[^/]*/))) {
         if (match.index > 0) pattern += this._regexEscape(routeName.slice(0, match.index));
         var name = match[0].slice(2), matchTail = (name[0] === '*');
-        if (matchTail) name = name.slice(1) || '*';
-        names.push(name);
+        names.push(matchTail && name.length > 1 ? name.slice(1) : name);
         if (matchTail) pattern += "(/[^?#]*)?";         // '/:*' matches rest of path
         else pattern += '\\/([^/]*)';                   // '/:name' matches one path component
         routeName = routeName.slice(match.index + match[0].length);
