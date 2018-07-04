@@ -221,9 +221,9 @@ Returns a middleware step `parseQuery(req, res, next)`.
 
 Examples:
 
-    "a=1&b=2"   => { a: '1', b: '2' }   // values parsed as strings
-    "a=1&b"     => { a: '1', b: 1 }     // no value is set to Number(1)
-    "a=1&a=2"   => { a: [ '1', '2' ] }  // repeated values gathered into an array
+    "a=1&b=two"   => { a: '1', b: 'two' } // values parsed as strings
+    "a=1&b"     => { a: '1', b: 1 }       // no value is set to Number(1)
+    "a=1&a=2"   => { a: [ '1', '2' ] }    // repeated values gathered into an array
 
 ### mw.buildReadBody( [options] )
 
