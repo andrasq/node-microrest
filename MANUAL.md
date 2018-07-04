@@ -187,8 +187,8 @@ The middleware is run in the order
 - post - finally steps
 
 
-mw
-==
+mw.js
+=====
 
 `mw` provides middleware helper functions.
 
