@@ -3,9 +3,16 @@ microrest
 
 Extremely small, extremely fast embeddable REST web framework.
 
+Components:
+- [rest](#restjs) - the rest framework
+- [router](#routerjs) - a full middleware router
+- [mw](#mwjs) - middleware helper functions
 
-Api
----
+
+rest.js
+=======
+
+    const rest = require('microrest');
 
 ### rest = require('microrest')
 
@@ -98,8 +105,8 @@ Helper methods:
 - `sendResponse(req, res, next, err, statusCode, body, headers)` -
 
 
-Router
-------
+NanoRouter
+----------
 
 The `Rest` app uses by default a tiny built-in router of type `rest.NanoRouter`.
 NanoRouter supports a single `use` step, a single error handler `err` step, one
@@ -120,3 +127,111 @@ A router used by `Rest` needs to support the api
 - `runRoute(rest, req, res, next)` - apply the defined route to the request, including
   `use` and `err` steps, if any.  Any error returned to the callback will be passed to
   `onError`.
+
+
+router.js
+=========
+
+    const Router = require('microrest/router');
+    const router = new Router();
+
+`router` is a full-featured middleware router.
+
+### new Router( [options] )
+
+Options:
+- readBody - function to gather the request and set `req.body`.  Default is `mw.mwReadBody`.
+  This function is invoked if `req.body` is not set after the `use` steps run.
+
+### router.setRoute( path, method, steps )
+
+Define a middleware step.  Steps are run in order of category, and in each category in
+the order defined.
+
+`path` is the req.url calls to match.  It can be a plain url `/path/name`, a url with
+embedded path parameters to extract `/path/:var1/:var2/name`, or one of the special
+categories:
+
+- pre - pre-routing step
+- use - post-routing, pre-mw step
+- err - error handling function, run if a mw step returns an error
+- post - finally step, run after the mw and/or error handlers have run
+
+`method` is the http method to match eg 'GET', 'PUT', 'POST' etc, or can be
+the special string '_ANY_' that will match any http method.
+
+`steps` is a (req, res, next) middleware function, or an array of such functions.
+
+### router.deleteRoute( path, method )
+
+Clear all steps associated with the route.
+
+### router.getRoute( path, method )
+
+Look up the middleware steps defined for the request.  The call can return an array of
+middleware functions (for direct-mapped routes), an object with property `mw` that
+contains the array of middleware functions (for regex-mapped routes), or `null` if the
+call does not have a matching route.
+
+### router.runRoute( rest, req, res, callback )
+
+Process a request by running the associated route, or returning a 404 error if the call
+does not match any of the defined routes.
+
+The middleware is run in the order
+- pre - pre-routing steps.  Unless the pre steps set `req._route` the route will be
+  matched after the pre and before the use steps.
+- use - all use steps existed when this call was routed
+- mw - the middleware steps defined for this call
+- err - error handling steps if any preceding mw step failed
+- post - finally steps
+
+
+mw
+==
+
+`mw` provides middleware helper functions.
+
+    const mw = require('microrest/mw');
+
+### warn( )
+
+Uses `console.warn` to print a notice to the console, but tags the message with a
+timestamp and "microrest:".
+
+### HttpError( statusCode, debugMessage, details )
+
+Construct a `new Error` with additional properties `statusCode`, `debug` and
+`details`.  The error `.message` is looked up from the status code, eg `404 Not Found`
+or `777 Internal Error`.
+
+### sendResponse( req, res, next, err, statusCode, body, headers )
+
+Send a response back to the caller.  If `err` is an object it will send an error
+response, else will set the specified headers, if any, and send the response body.
+If the body is a `string` or `Buffer`, it will be sent as-is; all else will be
+json-encoded first.
+
+`sendRespone` handles headers efficiently and is a fast, low overhead function.
+
+### buildParseQuery( [options] )
+
+Construct a function that will parse the query string contained in `req.url` and place
+name-value pairs into `req.params`.  It works similarly to `querystring` but for
+common use cases is 20-40% faster.
+Returns a middleware step `parseQuery(req, res, next)`.
+
+Examples:
+
+    "a=1&b=2"   => { a: '1', b: '2' }   // values parsed as strings
+    "a=1&b"     => { a: '1', b: 1 }     // no value is set to Number(1)
+    "a=1&a=2"   => { a: [ '1', '2' ] }  // repeated values gathered into an array
+
+### buildReadBody( [options] )
+
+Construct a function that will wait for the request body to arrive and set `req.body`.
+Returns a middleware step `readBody(req, res, next)`.
+
+Options:
+- bodySizeLimit - cap on the request size.  If the request body exceeds this many bytes,
+  the request is rejected with a 400 "max body size exceeded" error.
