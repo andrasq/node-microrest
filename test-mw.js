@@ -407,7 +407,7 @@ module.exports = {
 
         'should gather string chunks': function(t) {
             var req = this.req;
-            mw.mwReadBody(req, {}, function(err, body) {
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
                 t.equal(body, 'chunk1chunk2');
                 t.equal(req.body, body);
                 t.done();
@@ -419,7 +419,7 @@ module.exports = {
 
         'should gather buffers': function(t) {
             var req = this.req;
-            mw.mwReadBody(req, {}, function(err, body) {
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
                 t.ok(Buffer.isBuffer(body));
                 t.equal(body.toString(), 'chunk1chunk2');
                 t.equal(req.body, body);
@@ -433,7 +433,7 @@ module.exports = {
         'should gather single buffer': function(t) {
             var req = this.req;
             var buff = new Buffer('chunk1');
-            mw.mwReadBody(req, {}, function(err, body) {
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
                 t.equal(body, buff);
                 t.strictEqual(req.body, body);
                 t.done();
@@ -444,7 +444,7 @@ module.exports = {
 
         'should gather empty string body': function(t) {
             var req = this.req;
-            mw.mwReadBody(req, {}, function(err, body) {
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
                 t.equal(body, '');
                 t.strictEqual(req.body, body);
                 t.done();
@@ -455,7 +455,7 @@ module.exports = {
         'should gather empty buffer body': function(t) {
             var req = this.req;
             req._readableState.encoding = null;
-            mw.mwReadBody(req, {}, function(err, body) {
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
                 t.ok(Buffer.isBuffer(body));
                 t.equal(body.toString(), '');
                 t.strictEqual(req.body, body);
@@ -469,7 +469,7 @@ module.exports = {
                 var req = this.req;
                 this.req.body = "abc";
                 var spy = t.spy(req, 'on');
-                mw.mwReadBody(this.req, {}, function(err, body) {
+                mw.mwReadBody(this.req, {}, function(err, ctx, body) {
                     t.ok(!spy.called);
                     t.equal(body, undefined);
                     t.equal(req.body, 'abc');

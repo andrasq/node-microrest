@@ -134,8 +134,8 @@ function parseQuery( str ) {
 function buildReadBody( options ) {
     options = options || {};
     var bodySizeLimit = options.bodySizeLimit || Infinity;
-    return function mwReadBody( req, res, next ) {
-        if (req.body !== undefined) return next();
+    return function mwReadBody( req, res, next, ctx ) {
+        if (req.body !== undefined) return next(null, ctx);
         var body = '', chunks = null, bodySize = 0;
 
         req.on('data', function(chunk) {
@@ -144,14 +144,14 @@ function buildReadBody( options ) {
             else (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk));
         })
         req.on('error', function(err) {
-            next(err);
+            next(err, ctx);
         })
         req.on('end', function() {
-            if (bodySize > bodySizeLimit) return next((new mw.HttpError(400, 'max body size exceeded')), 1);
+            if (bodySize > bodySizeLimit) return next((new mw.HttpError(400, 'max body size exceeded')), ctx);
             body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : '');
             if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
             req.body = body;
-            next(null, body);
+            next(null, ctx, body);
         })
     }
 }

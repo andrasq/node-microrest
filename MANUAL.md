@@ -234,8 +234,10 @@ Examples:
 ### mw.buildReadBody( [options] )
 
 Construct a function that will wait for the request body to arrive and set `req.body`.
-Returns a middleware step `readBody(req, res, next)`.
+Returns a middleware step `readBody(req, res, next, context)` that will call
+`next(err, context, body)` with the body it places into `req.body`.  If `req.body` is
+already set, it will return immediately.
 
 Options:
 - bodySizeLimit - cap on the request size.  If the request body exceeds this many bytes,
-  the request is rejected with a 400 "max body size exceeded" error.
+  `next` will be called with a 400 "max body size exceeded" HttpError.

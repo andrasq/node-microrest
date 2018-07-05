@@ -29,7 +29,9 @@ module.exports = {
         },
 
         'should accept optional mw methods': function(t) {
-            t.equal(new Router({ readBody: this.fn1 }).readBody, this.fn1);
+            //t.equal(new Router({ readBody: this.fn1 }).readBody, this.fn1);
+            t.equal(typeof new Router({ readBody: this.fn1 }).readBody, 'function');
+            t.notEqual(new Router({ readBody: this.fn1 }).readBody, mw.mwReadBody);
             t.equal(new Router({ runMwSteps: this.fn1 }).runMwSteps, this.fn1);
             t.equal(new Router({ runMwErrorSteps: this.fn1 }).runMwErrorSteps, this.fn1);
             t.equal(new Router({ runMwStepsContext: this.fn1 }).runMwStepsContext, this.fn1);

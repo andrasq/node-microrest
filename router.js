@@ -26,7 +26,7 @@ function Router( options ) {
     this.rexroutes = new Array();       // regex matched routes
     this.rexmap = {};                   // matched routes, by path
     this.HttpError = mw.HttpError;
-    this.readBody = options.readBody || mw.mwReadBody;
+    this.readBody = options.readBody ? function _readBody(req, res, next, ctx) { readBody(req, res, function(err) { next(err, ctx) }) } : mw.mwReadBody;
     this.runMwSteps = options.runMwSteps || mw.runMwSteps;
     this.runMwStepsContext = options.runMwStepsContext || mw.runMwStepsContext;
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
@@ -107,7 +107,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         // read body if not already read
         // TODO: do not auto-read, make a some mw step read
         // TODO: change readBody to return the context
-        (ctx.req.body !== undefined) ? runMwRoute(null, ctx) : ctx.self.readBody(ctx.req, ctx.res, function(err, body) { runMwRoute(err, ctx) });
+        (ctx.req.body !== undefined) ? runMwRoute(null, ctx) : ctx.self.readBody(ctx.req, ctx.res, runMwRoute, ctx);
     }
     function runMwRoute(err, ctx) {
         // TODO: FIXME: always run the 'use' steps, do not combine with routed path
