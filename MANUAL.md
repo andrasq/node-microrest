@@ -155,6 +155,12 @@ categories:
 - err - error handling function, run if a mw step returns an error
 - post - finally step, run after the mw and/or error handlers have run
 
+Path parameters are separated by `/` path component delimiters.  Path parameter names
+start after the leading ':' and extend until the first '/' encountered or the end of
+the path pattern to match.  The special path parameter `:*{varname}` matches multiple
+path components, and can be used to match the tail of the path.  If `{varname}` is
+empty the request tail will be stored into `req.params['*']`.
+
 `method` is the http method to match eg 'GET', 'PUT', 'POST' etc, or can be
 the special string '_ANY_' that will match any http method.
 
