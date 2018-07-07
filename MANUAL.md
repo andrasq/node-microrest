@@ -79,7 +79,7 @@ listener in an http server.
 
 Options:
 - `encoding` - how to convert the request body, or `null` to return raw bytes.
-  Default 'utf8'; use `null` to not decode but return raw bytes.
+  Default 'utf8'; use `null` to not decode but return uninterpreted bytes.
 - `router` - the router to use.  Default is to use `processRequest`.
 - `processRequest(req, res, next)` - user function to process requests.
   No default.  It is an error for neither a router nor processRequest be given.
@@ -133,7 +133,8 @@ router.js
     const Router = require('microrest/router');
     const router = new Router();
 
-`router` is a full-featured middleware router.
+`router` is a full-featured middleware engine:  it routes and runs middleware steps,
+with hooks to customize routing and error handling.
 
 ### new Router( [options] )
 
