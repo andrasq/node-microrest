@@ -150,10 +150,15 @@ the order defined.
 embedded path parameters to extract `/path/:var1/:var2/name`, or one of the special
 categories:
 
-- pre - pre-routing step
-- use - post-routing, pre-mw step
-- err - error handling function, run if a mw step returns an error
-- post - finally step, run after the mw and/or error handlers have run
+- pre - pre-routing step.  The `pre` steps are always run, before the call is routed.
+- use - post-routing, pre-mw step.  Use steps are run as part of the call middleware.
+- err - error handling function.  Calling `next` with a non-falsy error skips the
+  rest of the pre-, use- and call-middleware and runs the error handlers instead.
+  Error handlers take `(err1, req, res, next)` and call `next(err)` with a falsy `err`
+  if they dealt with the error condition, call `next(err1)` to try the next error
+  handler instead, or call `next(err2)` if they themselves encountered an error.
+- post - finally step, run after the mw and/or error handlers have run.  The `post`
+  steps are always run as the last steps.
 
 Path parameters are separated by `/` path component delimiters.  Path parameter names
 start after the leading ':' and extend until the first '/' encountered or the end of
@@ -164,7 +169,8 @@ empty the request tail will be stored into `req.params['*']`.
 `method` is the http method to match eg 'GET', 'PUT', 'POST' etc, or can be
 the special string '_ANY_' that will match any http method.
 
-`steps` is a (req, res, next) middleware function, or an array of such functions.
+`steps` are a `(req, res, next)` middleware function, or an array of such functions;
+`err` steps are `(err, req, res, next)` or an array of such.
 
 ### router.deleteRoute( path, method )
 
@@ -183,12 +189,12 @@ Process a request by running the associated route, or returning a 404 error if t
 does not match any of the defined routes.
 
 The middleware is run in the order
-- pre - pre-routing steps.  Unless the pre steps set `req._route` the route will be
-  matched after the pre and before the use steps.
-- use - all use steps existed when this call was routed
-- mw - the middleware steps defined for this call
-- err - error handling steps if any preceding mw step failed
-- post - finally steps
+- pre - pre-routing steps.  Unless the `pre` steps set `req._route`, the route is
+  looked up after the `pre` and before the `use` steps.
+- use - all `use` steps that existed when this call was defined
+- mw - the middleware steps for this call
+- err - error handling steps for when any preceding mw step fails
+- post - finally steps that are run unconditionally
 
 
 mw.js
@@ -216,7 +222,7 @@ response, else will set the specified headers, if any, and send the response bod
 If the body is a `string` or `Buffer`, it will be sent as-is; all else will be
 json-encoded first.
 
-`sendRespone` handles headers efficiently and is a fast, low overhead function.
+`sendResponse` handles headers efficiently and is a fast, low overhead function.
 
 ### mw.buildParseQuery( [options] )
 
@@ -241,3 +247,8 @@ already set, it will return immediately.
 Options:
 - bodySizeLimit - cap on the request size.  If the request body exceeds this many bytes,
   `next` will be called with a 400 "max body size exceeded" HttpError.
+
+### mw.parseQuery( str )
+
+The underlying query string parser, available to parse querystring request bodies.
+See buildParseQuery.
