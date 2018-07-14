@@ -93,6 +93,12 @@ To keep the size small, the npm package does not in include the tests.  To run t
 tests or benchmarks, check out the repo from https://github.com/andrasq/node-microrest.
 
 
+Change Log
+----------
+
+[See the manual](https://github.com/andrasq/node-microrest/blob/master/MANUAL.md#change-log)
+
+
 Related Work
 ------------
 

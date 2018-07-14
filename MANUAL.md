@@ -253,3 +253,14 @@ Options:
 
 The underlying query string parser, available to parse querystring request bodies.
 See buildParseQuery.
+
+
+Change Log
+==========
+
+- 0.5.2 - make `null` and `undefined` return empty response bodies
+- 0.5.0 - full routing with microrest/router, full documentation, `/:*tail` matching
+- 0.4.1 - mw helper builders
+- 0.3.6 - faster repeatUntil, node-v0.10 support
+- 0.3.0 - faster runRoute
+- 0.2.0 - initial `app.onRequest` version
