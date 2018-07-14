@@ -60,7 +60,7 @@ Detailed documenation is in the [manual](https://github.com/andrasq/node-microre
 Benchmark
 ---------
 
-Requests served per second in batches of 100 concurrent calls a 20 byte request, 200
+Requests served per second in batches of 100 concurrent calls of a 20 byte request, 200
 byte response, calls made by nodejs using a keepAlive Agent with default maxSockets:
 
     qtimeit=0.21.0 node=8.11.1 v8=6.2.414.50 platform=linux kernel=4.9.0-0.bpo.4-amd64 up_threshold=false
