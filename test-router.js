@@ -7,7 +7,7 @@ var rest = require('./rest');
 module.exports = {
     setUp: function(done) {
         this.router = new Router({
-            readBody: rest.readBody,
+            readBody: mw.mwReadBody,
             runMwSteps: mw.runMwSteps,
             runMwErrorSteps: mw.runMwErrorSteps,
         });
