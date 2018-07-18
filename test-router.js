@@ -378,6 +378,17 @@ module.exports = {
             })
         },
 
+        'should use passed readBody': function(t) {
+            var router = new Router({ readBody: function(req, res, next) { req.body = 'test body'; next() } });
+            router.setRoute('/test/path', 'get', this.fn1);
+            var req = this.req;
+            delete req.body;
+            router.runRoute({}, req, {}, function(err) {
+                t.equal(req.body, 'test body');
+                t.done();
+            })
+        },
+
         'returned mw errors': {
 
             'should return error from pre step': function(t) {
