@@ -97,10 +97,10 @@ if (cluster.isMaster) {
         servers.restiq.listen(frameworks.restiq.port);
         servers.restiq.use(readBody);
         //servers.restiq.get(path1, function(req, res, next) { res.send(200, response1); next(); })
-        // 36k/s wrk -c8
-        servers.restiq.get(path1, function(req, res, next) { res.end(response1); next(); })
-        //servers.restiq.get(path1, sendResponse);
-        // 40k/s wrk -c8
+        // 36k/s wrk -c8; 45k/s 9.1
+        //servers.restiq.get(path1, function(req, res, next) { res.end(response1); next(); })
+        servers.restiq.get(path1, sendResponse);
+        // 40k/s wrk -c8; 53k/s 9.1 (both res.end and sendResponse)
     }
 
     if (frameworks.connect) {
