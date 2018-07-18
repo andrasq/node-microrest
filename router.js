@@ -26,7 +26,8 @@ function Router( options ) {
     this.rexroutes = new Array();       // regex matched routes
     this.rexmap = {};                   // matched routes, by path
     this.HttpError = mw.HttpError;
-    this.readBody = options.readBody ? function _readBody(req, res, next, ctx) { readBody(req, res, function(err) { next(err, ctx) }) } : mw.mwReadBody;
+    var readBody = options.readBody;
+    this.readBody = readBody ? function _readBody(req, res, next, ctx) { readBody(req, res, function(err) { next(err, ctx) }) } : mw.mwReadBody;
     this.runMwSteps = options.runMwSteps || mw.runMwSteps;
     this.runMwStepsContext = options.runMwStepsContext || mw.runMwStepsContext;
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
