@@ -49,12 +49,12 @@ Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel )
     else if (path[0] === '/' && path.indexOf('/:') >= 0) {
         var rex = this.rexmap[path] = this.rexmap[path] || { path: path, regex: null, names: {}, methods: {} };
         if (!rex.regex) this.makeCapturingRegex(rex, path);
-        rex.methods[method] = [].concat(this.steps.use, mwSteps);
+        rex.methods[method.toUpperCase()] = [].concat(this.steps.use, mwSteps);
         this.rexroutes.unshift(rex);
     }
     else {
         if (!this.maproutes[path]) this.maproutes[path] = {};
-        this.maproutes[path][method] = this.steps.use.concat(mwSteps);
+        this.maproutes[path][method.toUpperCase()] = this.steps.use.concat(mwSteps);
     }
 }
 
