@@ -1,4 +1,4 @@
-// npm install microreq qtimeit restify@4 express qrpc connect restiq
+// npm install microreq qtimeit restify@4 express qrpc connect restiq async
 // wrk -d4s -t2 -c8 'http://localhost:1337/echo?a=1&b=2&c=3
 
 
@@ -7,6 +7,7 @@ var cluster = require('cluster');
 var child_process = require('child_process');
 var http = require('http');
 var microreq = require('microreq');
+var async = require('async');
 var qtimeit = require('qtimeit');
 
 var rest = require('./rest');
@@ -17,9 +18,13 @@ var basePort = 1337;
 var frameworks = {
     // running restify alongside the others cuts 10-15% off their results
     //restify: { pkg: require('restify'), ver: require('restify/package').version, port: 1337 },
+// NOTE: node-v10 crashes with ECONNRESET on 2nd-3rd 100-parallel test run all others are enabled along with express
+// Omitting connect or rest_mw or restiq+rest_mw fixes. Omitting the wrk tests fixes.  Adding a 500ms pause between runs fixes.
+// (also restiq scores much higher if is first to run, 85k vs 78k/s)
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
     restiq:  { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
     connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
+// NOTE: rest_mw does not respond (0 calls / sec) without restiq run beforehand
     rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
     rest_ha: { pkg: require('./'), ver: require('./package').version, port: 1347 },
     rest:    { pkg: require('./'), ver: require('./package').version, port: 1339 },
@@ -283,6 +288,63 @@ else {
         var cmdline = 'sleep .5 ; wrk -d2s -t2 -c50 http://localhost:%d/test1 | grep ^Requests/sec';
         //var cmdline = 'sleep .5 ; ab -k -c100 -t1 http://localhost:%d/test1 2>&1 | grep ^Requests';
 
+        async.series([
+            function(next) {
+//return next();
+                async.eachSeries(Object.keys(frameworks), function(name, done) {
+                    if (name === 'qrpc') return done();
+                    var cmd = util.format(cmdline, frameworks[name].port);
+                    console.log("# %s: %s", name, cmd);
+                    var output = "";
+                    var runTest = function(doneTest) {
+                        child_process.exec(cmd, function(err, stdout, stderr) {
+                            output += stdout + stderr;
+                            doneTest(err);
+                        })
+                    }
+                    async.series([ runTest, runTest ], function(err) {
+                        console.log(output);
+                        done(err);
+                    });
+                }, next);
+            },
+
+            function(next) { setTimeout(next, 500) },
+            function(next) {
+                console.log("\nAR: bursts of %d parallel calls\n", parallelCallCount);
+                next();
+            },
+            function(next) {
+                qtimeit.bench.timeGoal = .4;
+                qtimeit.bench.visualize = true;
+                qtimeit.bench.showRunDetails = false;
+                qtimeit.bench.showTestInfo = true;
+                qtimeit.bench.opsPerTest = 100;         // 100 http calls per test
+                next();
+            },
+            // pause between runs to avoid the express ECONNRESET
+            function(next) { setTimeout(qtimeit.bench, 50, parallelTests, next) },
+            function(next) { setTimeout(qtimeit.bench, 50, parallelTests, next) },
+            function(next) { setTimeout(qtimeit.bench, 50, parallelTests, next) },
+
+            function(next) { setTimeout(next, 500) },
+            function(next) {
+                console.log("\nAR: sequential calls:\n");
+                next();
+            },
+            function(next) {
+                qtimeit.bench.opsPerTest = 1;           // 1 http call in per test
+                next();
+            },
+            function(next) { setTimeout(qtimeit.bench, 50, serialTests, next) },
+            function(next) { setTimeout(qtimeit.bench, 50, serialTests, next) },
+            function(next) {
+                console.log("AR: Done.");
+                next();
+            },
+        ]);
+
+/**
         if (1) {
             console.log("");
             for (var name in frameworks) {
@@ -317,5 +379,6 @@ else {
 
             }) }) })
         }, 500);
+**/
     }
 }
