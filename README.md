@@ -1,7 +1,7 @@
 microrest
 =========
 [![Build Status](https://api.travis-ci.org/andrasq/node-microrest.svg?branch=master)](https://travis-ci.org/andrasq/node-microrest?branch=master)
-[![Coverage Status](https://codecov.io/github/andrasq/node-microrest/coverage.svg?branch=master)](https://codecov.io/github/andrasq/node-microrest?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/andrasq/node-microrest/badge.svg?branch=master)](https://coveralls.io/github/andrasq/node-microrest?branch=master)
 
 Extremely small, extremely fast embeddable REST web framework.
 Perfect for adding a web API to an existing app.
