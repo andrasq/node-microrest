@@ -6,7 +6,7 @@
   "main": "rest.js",
   "license": "Apache-2.0",
   "author": "Andras",
-  "repository": "https://github.com/andrasq/node-microrest#readme",
+  "repository": { "type": "git", "url": "https://github.com/andrasq/node-microrest" },
   "readme": "see README.md in the root directory",
 
   "scripts": {
