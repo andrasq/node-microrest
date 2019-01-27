@@ -8,6 +8,6 @@ preinstall:
   - npm install npm@2.15.0
 after_success:
   - if [ `node -p 'process.version.slice(0, 3)'` != "v8." ]; then exit; fi
-  - npm install -g nyc@8.4.0
-  - npm install -g codecov
+  - npm install -g nyc codecov coveralls
   - npm run coverage && codecov
+  - nyc report -r text-lcov | coveralls
