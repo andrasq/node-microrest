@@ -405,7 +405,18 @@ module.exports = {
             done();
         },
 
-        'should gather string chunks': function(t) {
+        'should gather 1 string chunk': function(t) {
+            var req = this.req;
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
+                t.equal(body, 'chunk1');
+                t.equal(req.body, body);
+                t.done();
+            })
+            req.emit('data', 'chunk1');
+            req.emit('end');
+        },
+
+        'should gather 2 string chunks': function(t) {
             var req = this.req;
             mw.mwReadBody(req, {}, function(err, ctx, body) {
                 t.equal(body, 'chunk1chunk2');
@@ -417,7 +428,32 @@ module.exports = {
             req.emit('end');
         },
 
-        'should gather buffers': function(t) {
+        'should gather 3 string chunks': function(t) {
+            var req = this.req;
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
+                t.equal(body, 'chunk1chunk2chunk3');
+                t.equal(req.body, body);
+                t.done();
+            })
+            req.emit('data', 'chunk1');
+            req.emit('data', 'chunk2');
+            req.emit('data', 'chunk3');
+            req.emit('end');
+        },
+
+        'should gather 1 buffer chunk': function(t) {
+            var req = this.req;
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
+                t.ok(Buffer.isBuffer(body));
+                t.equal(body.toString(), 'chunk1');
+                t.equal(req.body, body);
+                t.done();
+            })
+            req.emit('data', new Buffer('chunk1'));
+            req.emit('end');
+        },
+
+        'should gather 2 buffer chunks': function(t) {
             var req = this.req;
             mw.mwReadBody(req, {}, function(err, ctx, body) {
                 t.ok(Buffer.isBuffer(body));
@@ -427,6 +463,20 @@ module.exports = {
             })
             req.emit('data', new Buffer('chunk1'));
             req.emit('data', new Buffer('chunk2'));
+            req.emit('end');
+        },
+
+        'should gather 3 buffer chunks': function(t) {
+            var req = this.req;
+            mw.mwReadBody(req, {}, function(err, ctx, body) {
+                t.ok(Buffer.isBuffer(body));
+                t.equal(body.toString(), 'chunk1chunk2chunk3');
+                t.equal(req.body, body);
+                t.done();
+            })
+            req.emit('data', new Buffer('chunk1'));
+            req.emit('data', new Buffer('chunk2'));
+            req.emit('data', new Buffer('chunk3'));
             req.emit('end');
         },
 
