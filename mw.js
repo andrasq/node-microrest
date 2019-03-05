@@ -141,7 +141,7 @@ function buildReadBody( options ) {
         req.on('data', dataListener = function(chunk) {
             if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
             else !chunks ? (chunks = chunk) : (Array.isArray(chunks)) ? chunks.push(chunk) : (chunks = new Array(chunks, chunk));
-            if ((bodySize += chunk.length) >= bodySizeLimit) req.removeListener('data', dataListener);
+            if ((bodySize += chunk.length) >= bodySizeLimit) { body = ''; chunks = null; req.removeListener('data', dataListener); }
         })
         req.on('error', function(err) {
             next(err, ctx);
