@@ -110,7 +110,7 @@ The `Rest` app uses by default a tiny built-in router of type `rest.NanoRouter`.
 NanoRouter supports a single `use` step, a single error handler `err` step, one
 middleware function step for each mapped route, and a `post` step that is run like a
 try/catch "finally" after all the other steps and/or the error handler have run.
-Redefinig a step overwrites the previous.
+Redefining a step overwrites the previous.
 
 NanoRouter ignores the request method and matches the request path either in its
 entirety, or to the longest `/`-separated mapped prefix.  The mapped prefix '/my/path'
