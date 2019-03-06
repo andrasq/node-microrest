@@ -179,6 +179,7 @@ function writeResponse( res, statusCode, body, headers ) {
     if (typeof statusCode === 'object' && statusCode) {
         var err = statusCode;
         statusCode = err.statusCode || 500;
+// TODO: also look up message in http.STATUS_CODES[err.code || statusCode]
         body = { error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '') };
         if (err.details) body.details = '' + (err.details);
         body = JSON.stringify(body);

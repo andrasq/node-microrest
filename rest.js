@@ -103,7 +103,6 @@ function Rest( options ) {
     options = options || {};
     var self = this;
 
-    this.encoding = options.encoding !== undefined ? options.encoding : 'utf8';
     this.router = options.router;
     this.emitter = options.emitter;
 
@@ -172,7 +171,7 @@ function noop() {};
  */
 Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     var self = this;
-    try { req.setEncoding(self.encoding); (self.router)
+    try { (self.router)
         ? self.router.runRoute(self, req, res, _doReturn)
         : Rest.readBody(req, res, function(err, body) {
             if (err || !self.processRequest) _doReturn(err || new Error('no router or processRequest configured'));

@@ -40,7 +40,6 @@ module.exports = {
 
         'should expose optional properties': function(t) {
             var options = {
-                encoding: 'base64',
                 router: {},
                 processRequest: function(){},
                 onError: function(){},
@@ -60,18 +59,6 @@ module.exports = {
         },
 
         'onRequest': {
-            'should catch setEncoding error': function(t) {
-                var req = mockReq();
-                t.stub(req, 'setEncoding').throws('mock setEncoding error');
-                var spy = t.spy(this.rest, 'onError');
-                this.rest.onRequest(req, mockRes(), noop);
-                setImmediate(function() {
-                    t.ok(spy.called);
-                    t.equal(spy.args[0][0], 'mock setEncoding error');
-                    t.done();
-                })
-            },
-
             'should catch readBody error': function(t) {
                 var spy = t.spy(this.rest, 'onError');
                 t.stubOnce(Rest, 'readBody').throws('mock readBody error');
@@ -189,18 +176,6 @@ module.exports = {
                     this.rest.onRequest(mockReq(), mockRes());
                     setImmediate(function() {
                         t.ok(spy.called);
-                        t.done();
-                    })
-                },
-
-                'should use configured encoding': function(t) {
-                    var rest = new Rest({ encoding: 'my-enc' });
-                    var req = mockReq();
-                    var spy = t.spy(req, 'setEncoding');
-                    rest.onRequest(req, mockRes());
-                    setImmediate(function() {
-                        t.ok(spy.called);
-                        t.equal(spy.args[0][0], 'my-enc');
                         t.done();
                     })
                 },
@@ -620,7 +595,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
 
             'should gather empty string body': function(t) {
                 var req = this.req;
-                this.rest.encoding = 'utf8';
+                // this.rest.encoding = 'utf8';
                 Rest.readBody(req, {}, function(err, body) {
                     t.equal(body, '');
                     t.strictEqual(req.body, body);
@@ -929,6 +904,19 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
                 t.equal(err, 'mock finally error');
                 t.done();
             })
+        },
+    },
+
+    'end-to-end': {
+        'unrouted path should return 404 Not Found': function(t) {
+            t.skip();
+
+            // launch server,
+            // hit unrouted path
+            // json = JSON.parse(body)
+            // t.equal(json.code, 404);
+            // t.equal(json.message, 'Not Found');
+            // t.equal(json.debug, 'POST /test/url: path not routed');
         },
     },
 }

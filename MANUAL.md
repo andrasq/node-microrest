@@ -78,15 +78,12 @@ The returned object has a bound method `onRequest` for use as an `on('request')`
 listener in an http server.
 
 Options:
-- `encoding` - how to convert the request body, or `null` to return raw bytes.
-  Default 'utf8'; use `null` to not decode but return uninterpreted bytes.
 - `router` - the router to use.  Default is to use `processRequest`.
 - `processRequest(req, res, next)` - user function to process requests.
   No default.  It is an error for neither a router nor processRequest be given.
 - `onError(err, req, res, next)` - user-defined middleware step to handle errors
 
 A `new Rest` object has properties that may be set:
-- `encoding` - options.encoding
 - `router` - options.router
 - `processRequest` - options.processRequest
 - `onError` - options.onError
@@ -258,6 +255,7 @@ See buildParseQuery.
 Change Log
 ==========
 
+- 0.6.0 - remove the broken `encoding`, let the app decode.  Breaking: now returns Buffers.
 - 0.5.2 - make `null` and `undefined` return empty response bodies
 - 0.5.0 - full routing with microrest/router, full documentation, `/:*tail` matching
 - 0.4.1 - mw helper builders
