@@ -186,7 +186,7 @@ function writeResponse( res, statusCode, body, headers ) {
         headers = undefined;
     }
     else if (typeof body === 'string' || (body && body.constructor === String) || Buffer.isBuffer(body)) body = body;
-    else if (body != null) {
+    else if (body !== undefined) {
         var json = tryJsonEncode(body);
         if (! (json instanceof Error)) body = json;
         else return mw.writeResponse(res, new mw.HttpError(statusCode = 500, 'unable to json encode response: ' + json.message + ', containing ' + Object.keys(body)));

@@ -256,6 +256,7 @@ Change Log
 ==========
 
 - 0.6.0 - remove the broken `encoding`, let the app decode.  Breaking: now returns Buffers.
+          JSON serialize `null` objects instead of returning an empty string.
 - 0.5.2 - make `null` and `undefined` return empty response bodies
 - 0.5.0 - full routing with microrest/router, full documentation, `/:*tail` matching
 - 0.4.1 - mw helper builders
