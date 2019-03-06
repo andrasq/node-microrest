@@ -50,20 +50,21 @@ function warn( ) {
 // node-v8: 74m/s tracking callCount (81m/s tracking, but 40) (loop of 100m)
 // but only 73m/s breaking up stack with a bound function and 22m/s with setImmediate
 function repeatUntil( loop, arg, testStop, callback ) {
-    var depth = 0, callCount = 0, returnCount = 0;
+    var depth = 0, loopCalls = 0, loopReturns = 0;
     if (!callback) { callback = testStop; testStop = _testRepeatUntilDone }
 
-    callCount++; _tryCall(loop, _return, arg);
+    loopCalls++; _tryCall(loop, _return, arg);
 
     function _return(err, stop) {
-        if (++returnCount > callCount) {
+        if (++loopReturns > loopCalls) {
+            // user-provided loop function called its callback more than once
             // probably too late to process an error response, but at least warn
             mw.warn('callback already called' + (err && ': ' + err || ''));
             return _tryCallback(callback, new Error('callback already called' + (err && ': ' + err || '')), arg);
         }
         else if (testStop(err, stop)) { return _tryCallback(callback, err, arg); }
-        else if (depth++ < 20) { callCount++; _tryCall(loop, _return, arg); }
-        else { depth = 0; callCount++; nextTick(function(){ _tryCall(loop, _return, arg) }); }
+        else if (depth++ < 20) { loopCalls++; _tryCall(loop, _return, arg); }
+        else { depth = 0; loopCalls++; nextTick(function(){ _tryCall(loop, _return, arg) }); }
     }
 }
 function _testRepeatUntilDone(err, done) { return err || done; }
