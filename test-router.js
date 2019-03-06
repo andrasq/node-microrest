@@ -416,7 +416,7 @@ module.exports = {
             'should return error from readBody mw': function(t) {
                 var calls = this.calls;
                 this.installRoutes();
-                t.stubOnce(this.router, 'readBody').yields('mock readBody error');
+                t.stubOnce(this.router, 'readBody', function(req, res, next, ctx) { setImmediate(function(){ next('mock readBody error', ctx) }) });
                 delete this.req.body;
                 this.router.runRoute({}, this.req, {}, function(err) {
                     t.deepEqual(calls, ['pre1', 'pre2', 'err1', 'err2', 'post1', 'post2']);

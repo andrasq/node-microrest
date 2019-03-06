@@ -252,7 +252,8 @@ module.exports = {
             var spyEnd = t.spyOnce(this.res, 'end');
             mw.sendResponse(this.req, this.res, noop, null, 202, null);
             t.equal(this.res.statusCode, 202);
-            t.deepEqual(spyEnd.args[0], []);
+            // treat `null` as an object, and json encode it
+            t.deepEqual(spyEnd.args[0], ['null']);
 
             var spyEnd = t.spyOnce(this.res, 'end');
             mw.sendResponse(this.req, this.res, noop, null, 202);
