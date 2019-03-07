@@ -1,7 +1,7 @@
 microrest
 =========
 
-Extremely small, extremely fast embeddable REST web framework.
+Extremely small, extremely fast embeddable REST framework for when size and speed matter.
 
 Components:
 - [rest](#restjs) - the rest framework
@@ -254,6 +254,11 @@ Construct a function that will wait for the request body to arrive and set `req.
 Returns a middleware step `readBody(req, res, next, context)` that will call
 `next(err, context, body)` with the body it places into `req.body`.  If `req.body` is
 already set, it will return immediately.
+
+Binary chunks arriving in Buffers will be gathered into a Buffer, text chunks arriving as
+strings will be gathered into a string.  The body reader is very efficient for small requests
+and handles utf8 plaintext fast.  When binary input is not expected, it may be worth setting
+`req.setEncoding('utf8')`.
 
 Options:
 - bodySizeLimit - cap on the request size.  If the request body exceeds this many bytes,
