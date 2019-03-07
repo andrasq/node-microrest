@@ -3,33 +3,32 @@ microrest
 [![Build Status](https://api.travis-ci.org/andrasq/node-microrest.svg?branch=master)](https://travis-ci.org/andrasq/node-microrest?branch=master)
 [![Coverage Status](https://coveralls.io/repos/github/andrasq/node-microrest/badge.svg?branch=master)](https://coveralls.io/github/andrasq/node-microrest?branch=master)
 
-Extremely small, extremely fast embeddable REST web framework.
-Perfect for adding a web API to an existing app.
+Extremely small, extremely fast REST framework for when size and speed matter.
+Also perfect for embedding a web API into an existing app.
 
-To use as a bare-bones request handler:
+To use as a bare-bones request handler (rest):
 
     const rest = require('microrest');
-    const handler = rest();
-    handler.processRequest = function(req, res, next) {
-        // read the request and send a response
+    const app = rest((req, res, next) => {
+        // request body is in the req.body Buffer
+        res.end();
         next();
     }
-    http.listen(1337, handler);
+    http.listen(0, (err, serverInfo) => {
+        // app is listening on port `serverInfo.port`
+    });
 
-To use as a light-weight app:
+To use as a light-weight app (rest_ha):
 
     const rest = require('microrest');
     const app = rest();
     app.get('/hello', (req, res, next) => {
-        // request body available in req.body
-        res.end('hello back, you said' + req.body);
+        res.end('hi back');
         next();
     })
-    const server = app.listen(1337, (err, serverInfo) => {
-        // app is listening on port `serverInfo.port`
-    })
+    const server = app.listen(1337);
 
-To use as a fully routed app with middleware steps:
+To use as a fully routed app with middleware steps (rest_mw):
 
     const rest = require('microrest');
     const mw = require('microrest/mw');
@@ -41,11 +40,10 @@ To use as a fully routed app with middleware steps:
     app.get('/hello/:arg1/:arg2', (req, res, next) => {
         // request body available in req.body
         // route and query params available in req.params
+        res.end();
         next();
     })
-    app.listen(1337, (err, serverInfo) => {
-        // app is listening on port `serverInfo.port`
-    })
+    app.listen(1337);
 
 To embed, copy `rest.js` (and possibly also mw.js and router.js) into your own library,
 and use as an internal component.
