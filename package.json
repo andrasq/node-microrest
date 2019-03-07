@@ -8,10 +8,9 @@
   "author": "Andras",
   "repository": { "type": "git", "url": "git://github.com/andrasq/node-microrest" },
   "readme": "see README.md in the root directory",
+  "files": ["README.md", "rest.js", "router.js", "mw.js"],
 
   "scripts": {
-    "prepublishOnly": "mkdir -p .git/ar; mv * .git/ar/ || true; cd .git/ar/; mv package* rest.js router.js mw.js README.md ../..",
-    "postpublish": "mv .git/ar/* . || true",
     "pretest": "qnit --version || npm install qnit",
     "test": "qnit -t 10000 test-rest* test-mw* test-rou* || false",
     "coverage": "nyc -r text -r lcov npm test",

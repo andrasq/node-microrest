@@ -291,7 +291,7 @@ Change Log
 
 - 0.6.1 - let createHandler also accept onRequest and onError handlers directly, not just via options
 - 0.6.0 - Breaking: remove the broken `encoding` handling, make the app decode.  Now returns Buffers.
-          fix null response handling (`null` is an object not an empty string, JSON serialize it)
+          Fix null response handling (`null` is an object not an empty string, JSON serialize it)
 - 0.5.2 - make `null` and `undefined` return empty response bodies
 - 0.5.0 - full routing with microrest/router, full documentation, `/:*tail` matching
 - 0.4.1 - mw helper builders
