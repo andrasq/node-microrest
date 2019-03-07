@@ -47,7 +47,7 @@ listener.  Port can be numeric, or can be createServer options.
 
 Create a microrest request handler app and start an http server listening and
 processing requests with the app.  Both http and https servers can be created.
-Unlike http createServer, microrest.createServer can listen on hunt for alternate ports.
+Unlike http createServer, microrest.createServer can listen on (hunt for) alternate ports.
 
 The function returns the http server, and the callback (if provided) is passed
 the server listen error or an object with the `pid` and `port` of the server.
