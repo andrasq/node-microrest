@@ -248,6 +248,21 @@ module.exports = {
             t.done();
         },
 
+        'should accept onRequest and onError instead of options': function(t) {
+            var handler = rest.createHandler(proc, err);
+            t.equal(handler.rest.processRequest, proc);
+            t.equal(handler.rest.onError, err);
+
+            handler = rest.createHandler(proc);
+            t.equal(handler.rest.processRequest, proc);
+            t.equal(typeof handler.rest.onError, 'function');
+
+            t.done();
+
+            function proc(q, s, n) { n() }
+            function err(e, q, s, n) { n() }
+        },
+
         'handler should be rest.onRequest': function(t) {
             var handler = rest.createHandler();
             t.equal(handler, handler.rest.onRequest);

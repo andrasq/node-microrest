@@ -25,7 +25,8 @@ module.exports = toStruct(module.exports);
  * create a microrest app with methods `use` and `get/post/put/del` etc.
  */
 function createHandler( options ) {
-    options = options || {};
+    if (typeof options === 'function') options = { processRequest: options, onError: arguments[1] };
+    else options = options || {};
     var rest = options.rest || new Rest(options);
     var handler = rest.onRequest;
     handler.rest = rest;

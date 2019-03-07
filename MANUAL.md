@@ -38,18 +38,34 @@ The app has methods
 - `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the request
    listener.  Port can be numeric, or can be createServer options.
 
-E.g.:
+E.g.
 
     const rest = require('microrest');
-    const app = rest({
-        processRequest: function(req, res, next) {
-            // req.body contains the request body
-            // compute and send response
-        }
-    });
-    const server = app.listen(1337, function(err, serverInfo) {
+    const app = rest();
+    app.get('/url/path', (req, res, next) => {
+        // handle calls to /url/path
+    })
+    app.post('/path2', (req, res, next) => {
+        // handle calls to /path2
+        // req.body contains the request body
+    })
+    const server = app.listen(1337, onListen(err, serverInfo) => {
+        // http server is listening on port 1337
+    })
+
+### rest( processRequest(req, res, next) [,onError(err, req, res, next)] )
+
+Alternate way of calling `rest()`, equivalent to passing processRequest and onError in the
+options object.
+
+    const rest = require('microrest');
+    const app = rest((req, res, next) => {
+        // req.body contains the request body
+        res.end();
+    })
+    const server = app.listen(1337, (err, serverInfo) => {
         // app is listening on port serverInfo.port
-    });
+    })
 
 ### rest.createServer( [options] [,callback(err, info)] )
 
@@ -273,6 +289,7 @@ See buildParseQuery.
 Change Log
 ==========
 
+- 0.6.1 - let createHandler also accept onRequest and onError handlers plain, not in options
 - 0.6.0 - remove the broken `encoding`, let the app decode.  Breaking: now returns Buffers.
           JSON serialize `null` objects instead of returning an empty string.
 - 0.5.2 - make `null` and `undefined` return empty response bodies
