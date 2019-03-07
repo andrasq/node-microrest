@@ -18,10 +18,12 @@ Rest builds request handler apps.
 
 ### rest( [options] )
 
-Create a request handler app function that can work as a (simple) app.
-The options are passed to `new Rest()`, described below.
+Create an http request handler app.  The options are passed to `new Rest()`, described
+below.  For a fully routed app with path parameters and multiple mw steps per route, pass in
+a router (see router.js below).  Returns the app, which is just the decorated request
+handler function.
 
-The app function is called on every http request.  It reads the request body,
+The handler function is called on every http request.  It reads the request body,
 and invokes the configured `processRequest` function that sends the response.
 
 The app has properties
@@ -30,27 +32,33 @@ The app has properties
 The app has methods
 - `app.use(func)` - mw routing method.  Calling app.use switches to running in routed mode,
   `processRequest` will not be called.  A four-argument function is used as the error handler,
-  else as the pre-middleware step.
+  else as the pre-middleware step.  The router used is the built-in NanoRouter.
 - `app.get`, `app.post`, `app.put`, `app.del`, etc - mw routing methods
 - `app.onError(err, req, res, next)` - function called if the route handler encounters an error
 - `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the request
-listener.  Port can be numeric, or can be createServer options.
+   listener.  Port can be numeric, or can be createServer options.
 
+E.g.:
 
     const rest = require('microrest');
-    const app = rest();
+    const app = rest({
+        processRequest: function(req, res, next) {
+            // req.body contains the request body
+            // compute and send response
+        }
+    });
     const server = app.listen(1337, function(err, serverInfo) {
-        // app is listening
+        // app is listening on port serverInfo.port
     });
 
-### rest.createServer( [options] [,callback] )
+### rest.createServer( [options] [,callback(err, info)] )
 
 Create a microrest request handler app and start an http server listening and
 processing requests with the app.  Both http and https servers can be created.
-Unlike http createServer, microrest.createServer can listen on (hunt for) alternate ports.
+Unlike http.createServer, microrest.createServer can listen on (hunt for) alternate ports.
 
 The function returns the http server, and the callback (if provided) is passed
-the server listen error or an object with the `pid` and `port` of the server.
+the server listen error and an object with the `pid` and `port` of the server.
 If no callback is provided, server errors are attached to `server._error`.
 
 The returned server has added properties
@@ -66,7 +74,9 @@ Options:
 
 ### rest.createHandler( [options] )
 
-Create a small REST app with support for a `use` step and direct-mapped url routes.
+Same as `rest()`.
+
+Create a small REST app with support for a `use` step and direct-mapped url handlers.
 Returns a function `handler(req, res, [next])` with methods `use`, `get/post/put/del`
 etc, and `listen`.  Listening on a socket will create an http server with createServer
 that will use the app to process requests.
@@ -81,7 +91,8 @@ Options:
 - `router` - the router to use.  Default is to use `processRequest`.
 - `processRequest(req, res, next)` - user function to process requests.
   No default.  It is an error for neither a router nor processRequest be given.
-- `onError(err, req, res, next)` - user-defined middleware step to handle errors
+- `onError(err, req, res, next)` - user function to handle errors.  By default
+  errors result in an http 500 error response.
 
 A `new Rest` object has properties that may be set:
 - `router` - options.router
@@ -141,22 +152,24 @@ Options:
 
 ### router.setRoute( path, method, steps )
 
-Define a middleware step.  Steps are run in order of category, and in each category in
-the order defined.
+Define a middleware step (or a sequence of steps) for the url or category `path`.  Steps are
+run in category order (pre-use-route-finally), and in each category in the order defined.
 
-`path` is the req.url calls to match.  It can be a plain url `/path/name`, a url with
-embedded path parameters to extract `/path/:var1/:var2/name`, or one of the special
+`path` is the category name or the req.url to match.  It can be a plain url `/path/name`, a
+url with embedded path parameters to extract `/path/:var1/:var2/name`, or one of the special
 categories:
 
 - pre - pre-routing step.  The `pre` steps are always run, before the call is routed.
 - use - post-routing, pre-mw step.  Use steps are run as part of the call middleware.
-- err - error handling function.  Calling `next` with a non-falsy error skips the
+- (url handling mw steps run after use and before finally)
+- err - "catch" step, error handling function.  Calling `next` with a non-falsy error skips the
   rest of the pre-, use- and call-middleware and runs the error handlers instead.
   Error handlers take `(err1, req, res, next)` and call `next(err)` with a falsy `err`
   if they dealt with the error condition, call `next(err1)` to try the next error
   handler instead, or call `next(err2)` if they themselves encountered an error.
-- post - finally step, run after the mw and/or error handlers have run.  The `post`
-  steps are always run as the last steps.
+  Err steps are run if and only if any preceding step throws or returns an error.
+- post - "finally" step, run after the mw and/or error handlers have run.  The `post`
+  steps are always run as the last steps.  Post errors are passed to `rest.onError`.
 
 Path parameters are separated by `/` path component delimiters.  Path parameter names
 start after the leading ':' and extend until the first '/' encountered or the end of
@@ -167,7 +180,7 @@ empty the request tail will be stored into `req.params['*']`.
 `method` is the http method to match eg 'GET', 'PUT', 'POST' etc, or can be
 the special string '_ANY_' that will match any http method.
 
-`steps` are a `(req, res, next)` middleware function, or an array of such functions;
+`steps` is a `(req, res, next)` middleware function, or an array of such functions;
 `err` steps are `(err, req, res, next)` or an array of such.
 
 ### router.deleteRoute( path, method )
