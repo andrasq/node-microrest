@@ -56,6 +56,12 @@ module.exports = {
             t.done();
         },
 
+        'should trim query params': function(t) {
+            this.router.setRoute('/test/path', this.fn1);
+            t.deepEqual(this.router.getRoute('/test/path?a=1&b=2'), [this.fn1]);
+            t.done();
+        },
+
         'should exact match if tail is not gathered': function(t) {
             this.router.setRoute('/:name1/:name2/other', this.fn2);
             t.ok(this.router.getRoute('/test/path/other'));

@@ -65,9 +65,10 @@ Router.prototype.deleteRoute = function deleteRoute( path, method ) {
 }
 
 Router.prototype.getRoute = function getRoute( path, method, route ) {
-    var mw;
+    var mw, mark;
 
     if (!path) return null;                             // path is required
+    if ((mark = path.indexOf('?')) >= 0) path = path.slice(0, mark);
     if (this.steps[path]) return this.steps[path];      // use-, pre-, err- and post- steps
     mw = this.maproutes[path] && (this.maproutes[path][method] || this.maproutes[path]['_ANY_']);
     if (mw) return mw;                                  // direct-mapped routes

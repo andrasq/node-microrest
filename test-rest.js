@@ -725,7 +725,7 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
             var router = new Rest.NanoRouter();
             router.setRoute('/path2', noop);
             t.equal(router.getRoute('/path0'), null);
-            t.deepEqual(router.getRoute('/path2'), noop);
+            t.deepEqual(router.getRoute('/path2?a=1'), noop);
             t.done();
         },
 

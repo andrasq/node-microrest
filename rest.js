@@ -138,6 +138,8 @@ Rest.NanoRouter.prototype.setRoute = function setRoute( path, method, mwStep ) {
     this.routes[path] = mwStep;
 }
 Rest.NanoRouter.prototype.getRoute = function getRoute( path, method ) {
+    var mark = path.indexOf('?');
+    if (mark >= 0) path = path.slice(0, mark);
     var mwSteps = this.routes[path];
     while (!mwSteps && this.matchPrefix && path.length > 1) mwSteps = this.routes[path = path.slice(path, path.lastIndexOf('/')) || '/'];
     return mwSteps;
