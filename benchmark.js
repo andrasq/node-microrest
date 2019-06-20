@@ -22,6 +22,7 @@ var frameworks = {
 // Omitting connect or rest_mw or restiq+rest_mw fixes. Omitting the wrk tests fixes.  Adding a 500ms pause between runs fixes.
 // (also restiq scores much higher if is first to run, 85k vs 78k/s)
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
+    fastify: { pkg: require('fastify'), ver: require('express/package').version, port: 1348 },
     restiq:  { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
     connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
 // NOTE: rest_mw does not respond (0 calls / sec) without restiq run beforehand
@@ -96,6 +97,17 @@ if (cluster.isMaster) {
         // 22k/s wrk .status.send, 44k/s wrk .end
     }
 
+    if (frameworks.fastify) {
+        // R2600X @4.0g: 33k/s
+        servers.fastify = frameworks.fastify.pkg();
+        servers.fastify.listen(frameworks.fastify.port);
+        servers.fastify.use(readBody);
+        // NOTE: fastify mw steps are not passed a `next`, but can attach mw steps to a specific route
+        servers.fastify.get(path1, function(req, res) { res.statusCode = 200; res.send(response1); });
+        // NOTE: res.send is not a function in mw use() steps, only in get/post/del etc
+        //servers.fastify.use(path1, function(req, res, next) { res.statusCode = 200; res.end(response1); next(); });
+    }
+
     if (frameworks.restiq) {
         // 13.8k/s 259us
         servers.restiq = frameworks.restiq.pkg.createServer({ restify: true });
@@ -119,6 +131,7 @@ if (cluster.isMaster) {
 
     if (frameworks.rest_mw) {
         // 65k/s 58.2us
+        // R2600X @4.0g: 55k/s
         var router = new Router();
         var app = servers.rest_mw = rest({ port: frameworks.rest_mw.port, router: router });
         app.use(readBody);
