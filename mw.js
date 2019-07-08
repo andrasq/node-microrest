@@ -108,6 +108,7 @@ function runMwErrorStepsContext( steps, ctx, err, callback ) {
 // handles a&b and a=1&b=2 and a=1&a=2 and &&&, ignores &=&=2&, does not decode a[0] or a[b]
 // Parses &&& sort of like node-v0.10, parses a&b&c like php.
 function parseQuery( str ) {
+    if (str.indexOf('+') >= 0) str = str.replace(/\+/g, ' ');
     var urldecode = function(s) { if (!/[%+]/.test(s)) return s; try { return decodeURIComponent(s) } catch (e) { return s } };
     var eq, base = 0, bound;
 
