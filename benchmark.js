@@ -1,4 +1,4 @@
-// npm install microreq qtimeit restify@4 express qrpc connect restiq async
+// npm install microreq qtimeit restify@4 express qrpc connect restiq async fastify
 // wrk -d4s -t2 -c8 'http://localhost:1337/echo?a=1&b=2&c=3
 
 
@@ -37,6 +37,7 @@ var frameworks = {
 
 var path1 = '/test1';
 var request1 = new Array(21).join('x');
+var response1 = new Array(513).join('z');
 var response1 = new Array(201).join('y');
 
 if (cluster.isMaster) {
@@ -134,6 +135,7 @@ if (cluster.isMaster) {
         // R2600X @4.0g: 55k/s
         var router = new Router();
         var app = servers.rest_mw = rest({ port: frameworks.rest_mw.port, router: router });
+        // app.use('before', function(req, res, next) { req.setEncoding('utf8'); next() });
         app.use(readBody);
         app.get('/test1', sendResponse);
         //app.get('/test1', noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, sendResponse);
