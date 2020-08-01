@@ -1,7 +1,7 @@
 /**
  * minimal middleware helpers
  *
- * Copyright (C) 2018 Andras Radics
+ * Copyright (C) 2018-2020 Andras Radics
  * Licensed under the Apache License, Version 2.0
  */
 
@@ -27,9 +27,9 @@ var mw = module.exports = {
     writeResponse: writeResponse,
 }
 
-// node-v0.10 nextTick did not accept function args yet
+// node-v0.10 nextTick did not accept function args yet.
 var nodeVersion = process.version.slice(1, process.version.indexOf('.'));
-var nextTick = nodeVersion >= 4 ? process.nextTick : setImmediate;
+var nextTick = eval('nodeVersion >= 4 ? process.nextTick : global.setImmediate || process.nextTick');
 
 function HttpError( statusCode, debugMessage, details ) {
     var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Error'));

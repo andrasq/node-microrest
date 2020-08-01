@@ -8,6 +8,8 @@
 var events = require('events');
 var mw = require('./mw');
 
+var setImmediate = eval('global.setImmediate || function(fn, a, b, c) { process.nextTick(function() { fn(a, b, c) }) }');
+
 module.exports = {
 
     'should export expected mw runner functions': function(t) {

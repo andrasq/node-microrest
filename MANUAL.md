@@ -289,6 +289,8 @@ See buildParseQuery.
 Change Log
 ==========
 
+- 0.6.4 - remove mw dependency on setImmediate
+- 0.6.3 - tune parseQuery
 - 0.6.2 - fix router path lookups if have query params
 - 0.6.1 - let createHandler also accept onRequest and onError handlers directly, not just via options
 - 0.6.0 - Breaking: remove the broken `encoding` handling, make the app decode.  Now returns Buffers.

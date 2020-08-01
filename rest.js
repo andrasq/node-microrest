@@ -19,7 +19,6 @@ module.exports.Rest = Rest;
 module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
 module.exports.reportError = _reportError;
-module.exports = toStruct(module.exports);
 
 /*
  * create a microrest app with methods `use` and `get/post/put/del` etc.
