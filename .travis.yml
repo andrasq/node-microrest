@@ -4,6 +4,7 @@ node_js:
   - 6
   - 8
   - 10
+  - 14
 preinstall:
   - npm install npm@2.15.0 qnit
 after_success:
