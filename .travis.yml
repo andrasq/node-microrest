@@ -5,10 +5,10 @@ node_js:
   - 8
   - 10
   - 14
-preinstall:
-  - npm install npm@2.15.0 qnit
+before_install:
+  - npm install qnit
 after_success:
   - if [ `node -p 'process.version.slice(0, 3)'` != "v8." ]; then exit; fi
   - npm install -g nyc codecov coveralls
-  - npm run coverage && codecov
+  - npm run coverage
   - nyc report -r text-lcov | coveralls
