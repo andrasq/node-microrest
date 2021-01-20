@@ -1,4 +1,4 @@
-// npm install microreq qtimeit restify@4 express qrpc connect restiq async fastify
+// npm install microreq qtimeit restify@4 express qrpc connect restiq async@1 fastify
 // wrk -d4s -t2 -c8 'http://localhost:1337/echo?a=1&b=2&c=3
 
 
@@ -14,6 +14,8 @@ var rest = require('./rest');
 var mw = require('./mw');
 var Router = require('./router');
 
+// TODO: hapi loopback[2,4] nestjs
+
 var basePort = 1337;
 var frameworks = {
     // running restify alongside the others cuts 10-15% off their results
@@ -22,18 +24,23 @@ var frameworks = {
 // Omitting connect or rest_mw or restiq+rest_mw fixes. Omitting the wrk tests fixes.  Adding a 500ms pause between runs fixes.
 // (also restiq scores much higher if is first to run, 85k vs 78k/s)
     express: { pkg: require('express'), ver: require('express/package').version, port: 1338 },
-    fastify: { pkg: require('fastify'), ver: require('express/package').version, port: 1348 },
+
+    // run qrpc early, because qrpc, restiq and microrest are the packages of interest
+    qrpc:    { pkg: require('qrpc'), ver: require('qrpc/package').version, port: 1341 },
+
     restiq:  { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
-    connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
 // NOTE: rest_mw does not respond (0 calls / sec) without restiq run beforehand
     rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
     rest_ha: { pkg: require('./'), ver: require('./package').version, port: 1347 },
     rest:    { pkg: require('./'), ver: require('./package').version, port: 1339 },
+
     //http_buf: { pkg: require('http'), ver: process.version, port: 1344 },
     http:     { pkg: require('http'), ver: process.version, port: 1340 },
     //http_raw: { pkg: require('http'), ver: process.version, port: 1343 },
-    qrpc:    { pkg: require('qrpc'), ver: require('qrpc/package').version, port: 1341 },
+    fastify: { pkg: tryRequire('fastify'), ver: require('express/package').version, port: 1348 },
+    connect: { pkg: require('connect'), ver: require('connect/package').version, port: 1346 },
 }
+function tryRequire(pkg) { try {return require(pkg) } catch (e) {} }
 
 var path1 = '/test1';
 var request1 = new Array(21).join('x');
@@ -86,6 +93,9 @@ if (cluster.isMaster) {
     if (frameworks.express) {
         // 20.3k/s 182us
         servers.express = frameworks.express.pkg();
+        // NOTE: disable 'etag' and 'x-powered-by', huge performance hit (esp etag)
+        servers.express.disable('etag');
+        servers.express.disable('x-powered-by');
         servers.express.listen(frameworks.express.port);
         servers.express.use(readBody);
         servers.express.get(path1, function(req, res, next) { res.status(200).send(response1); next(); })
@@ -98,7 +108,7 @@ if (cluster.isMaster) {
         // 22k/s wrk .status.send, 44k/s wrk .end
     }
 
-    if (frameworks.fastify) {
+    if (frameworks.fastify && frameworks.fastify.pkg) {
         // R2600X @4.0g: 33k/s
         servers.fastify = frameworks.fastify.pkg();
         servers.fastify.listen(frameworks.fastify.port);
@@ -278,10 +288,12 @@ else {
         }
 
         return function(callback) {
-            var ncalls = callCount, ndone = 0;
+            var ncalls = callCount, ndone = 0, mute = false;
             for (var i=0; i<ncalls; i++) makeCall(onBack);
             function onBack(err, res, body) {
-                doVerifyResponse(err, arguments[responseIndex]);
+                // FIXME: mute is false on every callback, prints a gazillion lines if ECONNREFUSED
+                if (err) { if (false && !mute) console.log("AR: call err", mute, err); mute = true }
+                else doVerifyResponse(err, arguments[responseIndex]);
                 if (++ndone === ncalls) {
                     setImmediate(callback);
                 }
@@ -289,7 +301,8 @@ else {
         }
 
         function doVerifyResponse(err, rawBody) {
-            if (err) { console.log("AR: call err", err); process.exit(); }
+            // if (err) { console.log("AR: call err", err); process.exit(); }
+            if (err) return;
             if (verifyResponse && String(rawBody) != response1 && JSON.parse(rawBody) != response1) {
                 console.log("AR: wrong response:", String(rawBody), response1);
                 throw new Error("wrong response")
@@ -308,6 +321,7 @@ else {
 //return next();
                 async.eachSeries(Object.keys(frameworks), function(name, done) {
                     if (name === 'qrpc') return done();
+                    if (!frameworks[name].pkg) return done();
                     var cmd = util.format(cmdline, frameworks[name].port);
                     console.log("# %s: %s", name, cmd);
                     var output = "";
@@ -363,6 +377,7 @@ else {
         if (1) {
             console.log("");
             for (var name in frameworks) {
+                if (!frameworks[name].pkg) continue;
                 var cmd = util.format(cmdline, frameworks[name].port);
                 console.log("# %s: %s", name, cmd);
                 if (name !== 'qrpc') console.log(String(child_process.execSync(cmd)) + String(child_process.execSync(cmd)));
