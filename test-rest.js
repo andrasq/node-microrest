@@ -1,5 +1,6 @@
-/**
- *
+/*
+ * Copyright (C) 2018-2021 Andras Radics
+ * Licensed under the Apache License, Version 2.0
  */
 
 'use strict';
@@ -414,6 +415,18 @@ res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
                 t.equal(a, 1235);
                 t.done();
             }
+        },
+
+        'close should call http server.close to stop listening': function(t) {
+            var handler = rest.createHandler();
+            t.equal(typeof handler.close, 'function');
+            handler.listen(1337, function(err, info) {
+                var spy = t.spyOnce(info.server, 'close');
+                handler.close(function(err) {
+                    t.ok(spy.called);
+                    t.done();
+                })
+            })
         },
 
         'reportError should emit error if called with an emitter': function(t) {

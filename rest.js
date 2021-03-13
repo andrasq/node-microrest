@@ -2,7 +2,7 @@
  * minimal tiny rest server
  * https://github.com/andrasq/node-microrest
  *
- * Copyright (C) 2018 Andras Radics
+ * Copyright (C) 2018-2021 Andras Radics
  * Licensed under the Apache License, Version 2.0
  *
  * 2018-04-12 - AR.
@@ -39,12 +39,18 @@ function createHandler( options ) {
     })
     handler.del = handler.delete;
 
+    var server = null;
     handler.listen = function(options, callback) {
         if (typeof options === 'function') { callback = options; options = 0; }
         options = (options > 0 || options === 0) ? { port: +options } : options ? options : { port: 0 };
         options.rest = handler.rest;
-        return module.exports.createServer(options, callback)
+        options.protocol = options.protocol || 'http:';
+        return server = module.exports.createServer(options, callback)
     };
+    handler.close = function close(callback) {
+        server && server.close();
+        callback && callback();
+    }
 
     return handler;
 
@@ -80,7 +86,7 @@ function createServer( options, callback ) {
     function onListening() {
         server.removeListener('error', onError);
         var addr = server.address && server.address();
-        if (callback) callback(null, { pid: process.pid, port: port || addr && addr.port });
+        if (callback) callback(null, { port: port || addr && addr.port, pid: process.pid, server: server });
     }
     function onError(err) {
         if (err.code === 'EADDRINUSE' && port && (options.tryNextPort || options.anyPort)) {

@@ -37,6 +37,7 @@ The app has methods
 - `app.onError(err, req, res, next)` - function called if the route handler encounters an error
 - `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the request
    listener.  Port can be numeric, or can be createServer options.
+- `app.close([callback])` - stop listening for more requests
 
 E.g.
 
@@ -289,6 +290,7 @@ See buildParseQuery.
 Change Log
 ==========
 
+- 0.7.0 - `app.close()` method
 - 0.6.4 - remove mw dependency on setImmediate
 - 0.6.3 - tune parseQuery
 - 0.6.2 - fix router path lookups if have query params
