@@ -37,7 +37,7 @@ function Router( options ) {
 Router.prototype.setRoute = function setRoute( path, method, mwSteps, sentinel ) {
     if (typeof path !== 'string') throw new Error('path is required');
     if (typeof method !== 'string') { sentinel = mwSteps; mwSteps = method; method = '_ANY_'; }
-    if (mwSteps && sentinel) throw new Error('setRoute takes a single mw step or an array');
+    if (mwSteps && sentinel !== undefined) throw new Error('setRoute takes a single mw step or an array');
     if (!Array.isArray(mwSteps)) mwSteps = [mwSteps];
     for (var i=0; i<mwSteps.length; i++) {
         if (typeof mwSteps[i] !== 'function') throw new Error('mw step [' + i + '] not a function');
