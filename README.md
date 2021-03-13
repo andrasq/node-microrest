@@ -6,28 +6,6 @@ microrest
 Extremely small, extremely fast REST framework for when size and speed matter.
 Also perfect for embedding a web API into an existing app.
 
-To use as a bare-bones request handler (rest):
-
-    const rest = require('microrest');
-    const app = rest((req, res, next) => {
-        // request body is in the req.body Buffer
-        res.end();
-        next();
-    }
-    http.listen(0, (err, serverInfo) => {
-        // app is listening on port `serverInfo.port`
-    });
-
-To use as a light-weight app (rest_ha):
-
-    const rest = require('microrest');
-    const app = rest();
-    app.get('/hello', (req, res, next) => {
-        res.end('hi back');
-        next();
-    })
-    const server = app.listen(1337);
-
 To use as a fully routed app with middleware steps (rest_mw):
 
     const rest = require('microrest');
@@ -44,6 +22,28 @@ To use as a fully routed app with middleware steps (rest_mw):
         next();
     })
     app.listen(1337);
+
+To use as a light-weight app (rest_ha):
+
+    const rest = require('microrest');
+    const app = rest();
+    app.get('/hello', (req, res, next) => {
+        res.end('hi back');
+        next();
+    })
+    const server = app.listen(1337);
+
+To use as a bare-bones request handler (rest):
+
+    const rest = require('microrest');
+    const app = rest((req, res, next) => {
+        // request body is in the req.body Buffer
+        res.end();
+        next();
+    }
+    http.listen(0, (err, serverInfo) => {
+        // app is listening on port `serverInfo.port`
+    });
 
 To embed, copy `rest.js` (and possibly also mw.js and router.js) into your own library,
 and use as an internal component.
