@@ -13,6 +13,8 @@ var events = require('events');
 var rest = require('./');
 var Rest = rest.Rest;
 
+var setImmediate = eval('global.setImmediate || function(fn, a, b, c) { process.nextTick(function() { fn(a, b, c) }) }');
+
 module.exports = {
     'module': {
         'should export expected class functions': function(t) {

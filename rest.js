@@ -20,6 +20,8 @@ module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
 module.exports.reportError = _reportError;
 
+var setImmediate = eval('global.setImmediate || function(fn, a, b, c, d) { process.nextTick(function() { fn(a, b, c, d) }) }');
+
 /*
  * create a microrest app with methods `use` and `get/post/put/del` etc.
  */
