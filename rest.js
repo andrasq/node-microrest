@@ -23,6 +23,7 @@ module.exports.reportError = _reportError;
 var nodeMajor = parseInt(process.versions.node);
 var nodeMinor = parseInt(process.versions.node.slice(process.versions.node.indexOf('.') + 1));
 var setImmediate = eval('global.setImmediate || function(fn, a, b, c, d) { process.nextTick(function() { fn(a, b, c, d) }) }');
+var fromBuf = eval('parseInt(process.versions.node) >= 10 ? Buffer.from : Buffer');
 
 /*
  * create a microrest app with methods `use` and `get/post/put/del` etc.
@@ -219,7 +220,7 @@ Rest.readBody = function readBody( req, res, next ) {
     })
     req.on('end', function() {
         body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : chunk1 ? chunk1 : '');
-        if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
+        if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : fromBuf('');
         req.body = body;
         next(null, body);
     })

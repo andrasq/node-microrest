@@ -8,6 +8,8 @@
 var util = require('util');
 var http = require('http');
 
+var fromBuf = eval('parseInt(process.versions.node) >= 10 ? Buffer.from : Buffer');
+
 var mw = module.exports = {
     warn: warn,
     HttpError: HttpError,
@@ -151,7 +153,7 @@ function buildReadBody( options ) {
         req.on('end', function() {
             if (bodySize > bodySizeLimit) return next((new mw.HttpError(400, 'max body size exceeded')), ctx);
             body = body || (Array.isArray(chunks) && Buffer.concat(chunks)) || chunks;
-            if (!body) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
+            if (!body) body = (req._readableState && req._readableState.encoding) ? '' : fromBuf('');
             req.body = body;
             next(null, ctx, body);
         })

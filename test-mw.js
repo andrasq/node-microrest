@@ -9,6 +9,7 @@ var events = require('events');
 var mw = require('./mw');
 
 var setImmediate = eval('global.setImmediate || function(fn, a, b, c) { process.nextTick(function() { fn(a, b, c) }) }');
+var fromBuf = eval('parseInt(process.versions.node) >= 10 ? Buffer.from : Buffer');
 
 module.exports = {
 
@@ -241,10 +242,10 @@ module.exports = {
             t.deepEqual(spyEnd.args[0], ['mock body']);
 
             var spyEnd = t.spyOnce(this.res, 'end');
-            mw.sendResponse(this.req, this.res, noop, null, null, new Buffer('mock body'), { 'my-header-1': 1, 'my-header-2': 2 });
+            mw.sendResponse(this.req, this.res, noop, null, null, fromBuf('mock body'), { 'my-header-1': 1, 'my-header-2': 2 });
             t.equal(this.res.statusCode, 200);
             t.contains(this.res._headers, {'my-header-1': 1, 'my-header-2': 2});
-            t.deepEqual(spyEnd.args[0], [new Buffer('mock body')]);
+            t.deepEqual(spyEnd.args[0], [fromBuf('mock body')]);
 
             var spyEnd = t.spyOnce(this.res, 'end');
             mw.sendResponse(this.req, this.res, noop, null, 201, { mock: 1, body: 2 });
@@ -454,7 +455,7 @@ module.exports = {
                 t.equal(req.body, body);
                 t.done();
             })
-            req.emit('data', new Buffer('chunk1'));
+            req.emit('data', fromBuf('chunk1'));
             req.emit('end');
         },
 
@@ -466,8 +467,8 @@ module.exports = {
                 t.equal(req.body, body);
                 t.done();
             })
-            req.emit('data', new Buffer('chunk1'));
-            req.emit('data', new Buffer('chunk2'));
+            req.emit('data', fromBuf('chunk1'));
+            req.emit('data', fromBuf('chunk2'));
             req.emit('end');
         },
 
@@ -479,15 +480,15 @@ module.exports = {
                 t.equal(req.body, body);
                 t.done();
             })
-            req.emit('data', new Buffer('chunk1'));
-            req.emit('data', new Buffer('chunk2'));
-            req.emit('data', new Buffer('chunk3'));
+            req.emit('data', fromBuf('chunk1'));
+            req.emit('data', fromBuf('chunk2'));
+            req.emit('data', fromBuf('chunk3'));
             req.emit('end');
         },
 
         'should gather single buffer': function(t) {
             var req = this.req;
-            var buff = new Buffer('chunk1');
+            var buff = fromBuf('chunk1');
             mw.mwReadBody(req, {}, function(err, ctx, body) {
                 t.equal(body, buff);
                 t.strictEqual(req.body, body);

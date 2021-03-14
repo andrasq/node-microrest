@@ -14,6 +14,7 @@ var rest = require('./');
 var Rest = rest.Rest;
 
 var setImmediate = eval('global.setImmediate || function(fn, a, b, c) { process.nextTick(function() { fn(a, b, c) }) }');
+var fromBuf = eval('parseInt(process.versions.node) >= 7 ? Buffer.from : Buffer');
 
 module.exports = {
     'module': {
@@ -615,14 +616,14 @@ module.exports = {
                     t.equal(req.body, body);
                     t.done();
                 })
-                req.emit('data', new Buffer('chunk1'));
-                req.emit('data', new Buffer('chunk2'));
+                req.emit('data', fromBuf('chunk1'));
+                req.emit('data', fromBuf('chunk2'));
                 req.emit('end');
             },
 
             'should gather single buffer': function(t) {
                 var req = this.req;
-                var buff = new Buffer('chunk1');
+                var buff = fromBuf('chunk1');
                 Rest.readBody(req, {}, function(err, body) {
                     t.equal(body, buff);
                     t.strictEqual(req.body, body);
