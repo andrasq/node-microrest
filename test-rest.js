@@ -287,19 +287,28 @@ module.exports = {
         },
 
         'handler should work as request handler': function(t) {
+            t.expect(4);
             var handler = rest({ processRequest: processRequest });
             var server = http.createServer(handler).listen(1337);
-            t.expect(1);
             function processRequest(req, res) {
+                t.equal(req.body, 'mock request body');
+                res.statusCode = 234;
+                res.write('mock response body');
                 res.end();
                 t.ok(true);
             }
             var req = http.request("http://localhost:1337/test", function(res) {
-console.log("AR: got", res.statusCode, res.body);
-res.on('data', function(chunk) { console.log("AR: chunk", String(chunk)) });
-                server.close();
-                t.done();
+                var resBody = '';
+                res.on('data', function(chunk) { resBody += chunk });
+                res.on('end', function() {
+                    t.equal(res.statusCode, 234);
+                    t.equal(resBody, 'mock response body');
+                    server.close(t.done);
+                })
             })
+            var requestBody = 'mock request body';
+            req.setHeader('Content-Length', requestBody.length);
+            req.write(requestBody);
             req.end();
         },
 
