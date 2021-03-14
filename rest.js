@@ -20,6 +20,8 @@ module.exports.createServer = createServer;
 module.exports.createHandler = createHandler;
 module.exports.reportError = _reportError;
 
+var nodeMajor = parseInt(process.versions.node);
+var nodeMinor = parseInt(process.versions.node.slice(process.versions.node.indexOf('.') + 1));
 var setImmediate = eval('global.setImmediate || function(fn, a, b, c, d) { process.nextTick(function() { fn(a, b, c, d) }) }');
 
 /*
@@ -37,6 +39,7 @@ function createHandler( options ) {
     handler.use = function use(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
     httpMethods.forEach(function(method) {
         var fn = function( path, mw ) { useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
+        // NOTE: node-v0.7 and older cannot delete fn.name, cannot redefine fn.name
         handler[method] = Object.defineProperty(fn, 'name', { value: method });
     })
     handler.del = handler.delete;
@@ -71,7 +74,7 @@ function createServer( options, callback ) {
 
     var rest = options.rest || new Rest();
     var server = (options.protocol === 'https:')
-        ? https.createServer(options, rest.onRequest)
+        ? https.createServer(options, rest.onRequest)   // options have certificate and key
         : http.createServer(rest.onRequest);
     server._rest = rest;
     server._error = null;
@@ -125,7 +128,9 @@ function Rest( options ) {
         if (self[name] && typeof self[name] !== 'function') throw new Error(name + ' must be a function') });
 
     // onRequest is a function bound to self that can be used as an http server 'request' listener
-    this.onRequest = function(req, res, next) { setImmediate(_invokeOnRequest, req, res, next) }
+    // NOTE: node-v0.8 emits 'end' before listeners added
+    this.onRequest = function(req, res, next) {
+        nodeMajor === 0 && nodeMinor < 10 ? _invokeOnRequest(req, res, next) : setImmediate(_invokeOnRequest, req, res, next) }
     function _invokeOnRequest(req, res, next) { self._onRequest(req, res, next) }
 }
 
@@ -178,6 +183,8 @@ function noop() {};
 
 /*
  * microrest function to handle an http 'request' event
+ * NOTE: node-v0.10 and up automatically pause req events until listening,
+ * node-v0.8 does not but req.pause/resume work; neither works for node-v0.9
  */
 Rest.prototype._onRequest = function _onRequest( req, res, next ) {
     var self = this;
