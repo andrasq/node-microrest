@@ -208,17 +208,17 @@ Rest.prototype._onRequest = function _onRequest( req, res, next ) {
  */
 Rest.readBody = function readBody( req, res, next ) {
     if (req.body !== undefined) return next();
-    var body = '', chunks = null, bodySize = 0;
+    var body = '', chunk1 = null, chunks = null, bodySize = 0;
 
     req.on('data', function(chunk) {
         if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
-        else (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk));
+        else (!chunk1) ? chunk1 = chunk : (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk1, chunk));
     })
     req.on('error', function(err) {
         next(err);
     })
     req.on('end', function() {
-        body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : '');
+        body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : chunk1 ? chunk1 : '');
         if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : new Buffer('');
         req.body = body;
         next(null, body);
