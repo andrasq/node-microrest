@@ -290,6 +290,7 @@ See buildParseQuery.
 Change Log
 ==========
 
+- 0.7.1 - fix to work on node-v0.7, avoid Buffer deprecation warning
 - 0.7.0 - `app.close()` method
 - 0.6.4 - remove mw dependency on setImmediate
 - 0.6.3 - tune parseQuery
