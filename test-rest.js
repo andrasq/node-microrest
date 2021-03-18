@@ -818,8 +818,38 @@ module.exports = {
             req.emit('end');
         },
 
-        'runRoute should return error on unrouted path': function(t) {
-// FIXME: not! not if could handle the error (ie, return 404 status to the caller)
+        'runRoute should run the post step': function(t) {
+            var useCalled = 0, postCalled = 0;
+            var router = new Rest.NanoRouter();
+            router.setRoute('use', function(req, res, next) { useCalled += 1; next() });
+            router.setRoute('post', function(req, res, next) { postCalled += 1; next() });
+            var restObj = { readBody: function(req, res, next) { req.body = "mock body"; next() }, emit: noop };
+            var req = mockReq();
+            router.runRoute(restObj, req, mockRes(), function(err) {
+                t.ifError(err);
+                t.equal(useCalled, 1);
+                t.equal(postCalled, 1);
+                t.done();
+            })
+            req.emit('end');
+        },
+
+        'runRoute should run the post step on error': function(t) {
+            var called = false;
+            var router = new Rest.NanoRouter();
+            router.setRoute('use', function(req, res, next) { throw 'mock-error' });
+            router.setRoute('post', function(req, res, next) { called = true; next() });
+            var restObj = { readBody: function(req, res, next) { req.body = "mock body"; next() }, emit: noop };
+            var req = mockReq();
+            router.runRoute(restObj, req, mockRes(), function(err) {
+                t.equal(err, 'mock-error');
+                t.strictEqual(called, true);
+                t.done();
+            })
+            req.emit('end');
+        },
+
+        'runRoute should return 404 error on unrouted path': function(t) {
             var router = new Rest.NanoRouter();
             t.stub(router.routes, 'readBody').yields(null, '');
             router.setRoute('err', function(err, req, res, next) { next(err) });

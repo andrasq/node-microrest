@@ -167,7 +167,7 @@ Rest.NanoRouter.prototype.runRoute = function runRoute( rest, req, res, next ) {
         _tryStep(self.routes.readBody, req, res, function(err2) {
             if (err2) return runError(err2);
             self.routes[req.url]
-                ? _tryStep(self.routes[req.url], req, res, runError)
+                ? _tryStep(self.routes[req.url], req, res, runFinally)
                 : runFinally(Rest._sendErrorResponse(res, { code: 404, message: 'Cannot ' + (req.method || 'GET') + ' ' + req.url + ', path not routed' }))
     }) })
     function runError(err) { ((err3 = err) && self.routes.err) ? _tryErrStep(self.routes.err, err3, req, res, runFinally) : runFinally(err3) }

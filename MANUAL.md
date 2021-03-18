@@ -1,5 +1,7 @@
 microrest
 =========
+[![Build Status](https://api.travis-ci.org/andrasq/node-microrest.svg?branch=master)](https://travis-ci.org/andrasq/node-microrest?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/andrasq/node-microrest/badge.svg?branch=master)](https://coveralls.io/github/andrasq/node-microrest?branch=master)
 
 Extremely small, extremely fast embeddable REST framework for when size and speed matter.
 
@@ -144,12 +146,12 @@ would match '/my/path/name' and '/my/path/othername', but not '/my' nor
 `/path/:param1/:param2`).
 
 A router used by `Rest` needs to support the api
-- `setRoute(path, [method,] mw)` - map the route to the mw.  `mw` can be a function(req, res, next)
-  or an array of mw functions.  The path may or may not start with a leading `/` slash:
-  use steps are path 'use', error handlers are path 'err'.
+- `setRoute(path, [method,] mw)` - map the route to the mw.  `mw` must be a single
+  function(req, res, next).  The path must start with a leading `/` slash, or be
+  one of `'use'` for a use step, `'post'` for a post step, or `'err'` for an error handler.
 - `runRoute(rest, req, res, next)` - apply the defined route to the request, including
-  `use` and `err` steps, if any.  Any error returned to the callback will be passed to
-  `onError`.
+  `use`, `post` and `err` steps, if any.  Any error returned to the callback will be passed
+  to `onError`.
 
 
 router.js
@@ -290,6 +292,7 @@ See buildParseQuery.
 Change Log
 ==========
 
+- 0.7.2 - fix NanoRouter 'post' step
 - 0.7.1 - fix to work on node-v0.7, avoid Buffer deprecation warning
 - 0.7.0 - `app.close()` method
 - 0.6.4 - remove mw dependency on setImmediate
