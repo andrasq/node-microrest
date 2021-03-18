@@ -6,47 +6,46 @@ microrest
 Extremely small, extremely fast REST framework for when size and speed matter.
 Also perfect for embedding a web API into an existing app.
 
-To use as a fully routed app with middleware steps (rest_mw):
+To use as a fully routed app with middleware steps and route params (rest_mw):
 
     const rest = require('microrest');
     const mw = rest.mw;
-    const Router = rest.Router;
 
-    const app = rest({ router: new Router() });
+    const app = rest();
     app.use(mw.mwParseQuery);
     app.use(mw.mwReadBody);
     app.get('/hello/:arg1/:arg2', (req, res, next) => {
         // request body available in req.body
-        // route and query params available in req.params
+        // query params and arg1, arg2 available in req.params
         res.end();
         next();
     })
     app.listen(1337);
 
-To use as a light-weight app (rest_ha):
+To use as a light app with direct-mapped routes (rest_ha):
 
     const rest = require('microrest');
-    const app = rest();
+    const app = rest({ router: null });
     app.get('/hello', (req, res, next) => {
         res.end('hi back');
         next();
     })
     const server = app.listen(1337);
 
-To use as a bare-bones request handler (rest):
+To use as a bare-bones request handler without routed calls (rest):
 
     const rest = require('microrest');
     const app = rest((req, res, next) => {
         // request body is in the req.body Buffer
+        // the query string and path are in req.url
         res.end();
         next();
     }
-    http.listen(0, (err, serverInfo) => {
-        // app is listening on port `serverInfo.port`
-    });
+    app.listen(1337);
 
-To embed, copy `rest.js` (and possibly also mw.js and router.js) into your own library,
-and use as an internal component.
+To embed, copy `rest.js` (and possibly also mw.js and router.js) into your own library, and
+use as an internal component.  The last two examples above do not use on any functions from
+router.js or mw.js.
 
 
 Documentation
@@ -70,10 +69,6 @@ byte response, calls made by nodejs using a keepAlive Agent with default maxSock
     rest       34,794 ops/sec   2853 >>>>>>>>>>>>>>
     http       28,980 ops/sec   2377 >>>>>>>>>>>>
 
-And, just for fun, a fast non-REST remote procedure call library (single socket):
-
-    qrpc      131,703 ops/sec  10800 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
 With the test load generated externally to nodejs by [`wrk`](https://github.com/wg/wrk.git):
 
     # wrk -d2s -t2 -c50 http://localhost:1337/test1
@@ -83,6 +78,11 @@ With the test load generated externally to nodejs by [`wrk`](https://github.com/
     rest_ha:    83304.33        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     rest:       89870.42        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     http:       57735.86        xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+And, just for fun, a fast non-REST call-multiplexed remote procedure call library, over a single socket:
+
+    qrpc      131,703 ops/sec  10800 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 
 Testing
 -------

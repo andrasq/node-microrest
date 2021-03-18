@@ -5,20 +5,69 @@ microrest
 
 Extremely small, extremely fast embeddable REST framework for when size and speed matter.
 
-Components:
-- [rest](#restjs) - the rest framework
-- [router](#routerjs) - a full middleware router
+    const rest = require('microrest');
+    const app = rest();
+    app.get('/hello/:name', function(req, res, next) {
+        res.end('Hello, ' + req.params.name);
+        next();
+    })
+    app.listen(1234);
+
+- [rest](#restjs) - the rest framework and built-in tiny router
+- [router](#routerjs) - a full middleware stack router
 - [mw](#mwjs) - middleware helper functions
+
+
+rest( options )
+====
+
+The package exports a routed app builder `rest()` with methods `app.use`, `app.listen`,
+`app.close`, and routing functions `app.get`, `app.post` etc.  See rest.js below for the
+detailed descriptions, here are the differences.
+
+Each call to `app.use([path], mw)` appends a mw processing step for the path by calling
+setRoute(path, mw).  Path may be an http route and start with '/', or one of the special
+route processing steps `'pre'`, `'use'`, `'post'` or `'err'`.  See router.js below for
+details.
+
+`app.get(path, mw)` and the other http methods define the middleware step(s) implementing
+the named http route.  The route is registered with `router.setRoute(path, 'GET', mw)`.
+`mw` may be a single middleware function `mw(req, res, next)` or an array of such.
+
+The rest calls are run by the middleware in the order:  `pre, use, [mw], post`.  The `pre`
+steps are run before the request is read, decoded or routed.  The `use` steps are run to
+read and decode the request after the request is routed.  The route-specific middleware
+steps `[mw]` are run to handle the call, and are followed by the `post` steps.  Errors
+thrown in any of the pre-, use- or mw-steps run the `err` steps then the `post` steps.
+Errors thrown in the post steps are reported to the `onError` app option or logged to
+the console.
+
+The options to `rest()` are the same as described under `new rest.Rest()` below,
+except that if the options do not include a router, a rest.Router will be used.
+
+    const rest = require('microrest');
+    const app = rest();
+
+    const mw = rest.mw;
+    app.use(mw.mwParseQuery);
+    app.use(mw.mwReadBody);
+    app.get('/hello/:arg1/:arg2', (req, res, next) => {
+        // request body available in req.body
+        // query params and arg1, arg2 available in req.params
+        res.end();
+        next();
+    })
+    app.listen(1337);
 
 
 rest.js
 =======
 
-Rest builds request handler apps.
+The rest.js file exports an app builder just like `rest()` but the default router if
+none are specified in the options is NanoRouter.
 
-    const rest = require('microrest');
 
-### rest( [options] )
+### microrest.rest( [options] )
 
 Create an http request handler app.  The options are passed to `new Rest()`, described
 below.  For a fully routed app with path parameters and multiple mw steps per route, pass in
@@ -34,16 +83,17 @@ The app has properties
 The app has methods
 - `app.use(func)` - mw routing method.  Calling app.use switches to running in routed mode,
   `processRequest` will not be called.  A four-argument function is used as the error handler,
-  else as the pre-middleware step.  The router used is the built-in NanoRouter.
+  else as the pre-middleware step.  The router used if not provided is the built-in `rest.NanoRouter`.
 - `app.get`, `app.post`, `app.put`, `app.del`, etc - mw routing methods
 - `app.onError(err, req, res, next)` - function called if the route handler encounters an error
+   not handled by the `'err'` step.
 - `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the request
    listener.  Port can be numeric, or can be createServer options.
 - `app.close([callback])` - stop listening for more requests
 
-E.g.
+The options are described under `new rest.Rest()` below.
 
-    const rest = require('microrest');
+    const rest = require('microrest').rest;
     const app = rest();
     app.get('/url/path', (req, res, next) => {
         // handle calls to /url/path
@@ -56,13 +106,13 @@ E.g.
         // http server is listening on port 1337
     })
 
-### rest( processRequest(req, res, next) [,onError(err, req, res, next)] )
+### microrest.rest( processRequest(req, res, next) [,onError(err, req, res, next)] )
 
 Alternate way of calling `rest()`, equivalent to passing processRequest and onError in the
 options object.
 
-    const rest = require('microrest');
-    const app = rest((req, res, next) => {
+    const microrest = require('microrest');
+    const app = microrest.rest((req, res, next) => {
         // req.body contains the request body
         res.end();
     })
@@ -95,12 +145,16 @@ Options:
 
 Same as `rest()`.
 
-Create a small REST app with support for a `use` step and direct-mapped url handlers.
-Returns a function `handler(req, res, [next])` with methods `use`, `get/post/put/del`
-etc, and `listen`.  Listening on a socket will create an http server with createServer
-that will use the app to process requests.
+Create a small REST request handler with support for a `use` step and direct-mapped
+(default) or routed (using `options.router`) url handlers.  Returns a function
+`handler(req, res, [next])` that can be used as the on('request') handler to
+httpServer.createServer, or `handler.listen` will go ahead and create the http server.
+The handler function can also be used as an app with methods `use`, `get/post/put/del` etc,
+`listen` and `close`.
 
 ### new rest.Rest( [options] )
+
+Rest builds request handler apps.
 
 Rest instance implementation class, called by createHandler() and createServer().
 The returned object has a bound method `onRequest` for use as an `on('request')`
@@ -110,24 +164,15 @@ Options:
 - `router` - the router to use.  Default is to use `processRequest`.
 - `processRequest(req, res, next)` - user function to process requests.
   No default.  It is an error for neither a router nor processRequest be given.
+  It is invoked with a noop callback and a separate copy of the body.
 - `onError(err, req, res, next)` - user function to handle errors.  By default
-  errors result in an http 500 error response.
+  errors result in an http 500 error response.  Invoked on readBody or processRequest
+  error, or as the last resort error handler from routed path execution.
 
 A `new Rest` object has properties that may be set:
 - `router` - options.router
 - `processRequest` - options.processRequest
 - `onError` - options.onError
-
-Helper methods:
-- `HttpError(statusCode, debugMessage, details)` - http error builder, returns instanceof Error.
-- `readBody(req, res, next)` - function to read the request body from the `req` object.
-   Calls `next(err, body)`.  Body is also set on req as `req.body`.
-- `processRequest(req, res, next, body)` - function to handle the request if
-   no router was provided.  Set to either the user-provided function or a built-in.
-   It is invoked with a noop callback and a separate copy of the body.
-- `onError(err, req, res, next)` - invoked on readBody or processRequest error, or
-   as the last resort error handler from routed path execution.
-- `sendResponse(req, res, next, err, statusCode, body, headers)` -
 
 
 NanoRouter
@@ -245,7 +290,7 @@ Construct a `new Error` with additional properties `statusCode`, `debug` and
 `details`.  The error `.message` is looked up from the status code, eg `404 Not Found`
 or `777 Internal Error`.
 
-### mw.sendResponse( req, res, next, err, statusCode, body, headers )
+### mw.sendResponse( req, res, next, err, statusCode ,body [,headers] )
 
 Send a response back to the caller.  If `err` is an object it will send an error
 response, else will set the specified headers, if any, and send the response body.
