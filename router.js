@@ -9,9 +9,9 @@
 module.exports = Router;
 
 var mw = require('./mw');
-var warn = mw.warn;
 
 function Router( options ) {
+    if (!(this instanceof Router)) return new Router(options);
     options = options || {};
     this.NotRoutedHttpCode = 404;
     this.steps = {
@@ -88,7 +88,7 @@ Router.prototype.getRoute = function getRoute( path, method, route ) {
 }
 
 // apply the steps defined for the route to the http request
-function _reportCbError(err) { warn('microroute: runRoute cb threw:', err) }
+function _reportCbError(err) { mw.warn('Route: runRoute cb threw:', err) }
 function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(e) } }
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var context = { self: this, rest: rest, req: req, res: res, callback: callback, ix: 0, steps: null };

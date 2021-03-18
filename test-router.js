@@ -38,6 +38,13 @@ module.exports = {
             t.equal(new Router({ runMwErrorStepsContext: this.fn1 }).runMwErrorStepsContext, this.fn1);
             t.done();
         },
+
+        'is also a Router factory': function(t) {
+            var router = Router();
+            t.ok(router instanceof Router);
+            t.notEqual(Router(), router);
+            t.done();
+        },
     },
 
     'getRoute': {
