@@ -1,6 +1,9 @@
 /**
  * simple little router for mapped and regex routes
  *
+ * Copyright (C) 2018-2021 Andras Radics
+ * Licensed under the Apache License, Version 2.0
+ *
  * 2018-04-15 - AR.
  */
 

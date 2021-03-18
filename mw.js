@@ -1,9 +1,11 @@
 /**
  * minimal middleware helpers
  *
- * Copyright (C) 2018-2020 Andras Radics
+ * Copyright (C) 2018-2021 Andras Radics
  * Licensed under the Apache License, Version 2.0
  */
+
+'use strict';
 
 var util = require('util');
 var http = require('http');
@@ -112,7 +114,7 @@ function runMwErrorStepsContext( steps, ctx, err, callback ) {
 function parseQuery( str ) {
     if (str.indexOf('+') >= 0) str = str.replace(/\+/g, ' ');
     var urldecode = function(s) { if (!/[%+]/.test(s)) return s; try { return decodeURIComponent(s) } catch (e) { return s } };
-    var eq, base = 0, bound;
+    var eq, base = 0, bound, name, value;
 
     var hash = {};
     while (base < str.length) {
