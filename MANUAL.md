@@ -299,6 +299,11 @@ json-encoded first.
 
 `sendResponse` handles headers efficiently and is a fast, low overhead function.
 
+### mw.writeResponse( res, statusCode, body, headers )
+### mw.writeResponse( res, err )
+
+Implementation entry point for mw.sendResponse.
+
 ### mw.buildParseQuery( [options] )
 
 Construct a function that will parse the query string contained in `req.url` and place
@@ -337,7 +342,7 @@ See buildParseQuery.
 Change Log
 ==========
 
-- 0.8.0 - export all functionality by default via `index.js`
+- 0.8.0 - export all functionality by default via `index.js`, fix mw.sendResponse to call next()
 - 0.7.2 - fix NanoRouter 'post' step
 - 0.7.1 - fix to work on node-v0.7, avoid Buffer deprecation warning
 - 0.7.0 - `app.close()` method

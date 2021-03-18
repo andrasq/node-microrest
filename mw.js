@@ -177,8 +177,8 @@ function buildParseQuery( options ) {
 }
 
 function sendResponse( req, res, next, err, statusCode, body, headers ) {
-    try { return mw.writeResponse(res, err || statusCode, body, headers) }
-    catch (err2) { return next(err2) }
+    try { mw.writeResponse(res, err || statusCode, body, headers); next() }
+    catch (err2) { next(err2) }
 }
 
 function writeResponse( res, statusCode, body, headers ) {

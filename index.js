@@ -24,6 +24,7 @@ module.exports.mw = files.mw;
 module.exports.Rest = files.rest.Rest;
 module.exports.NanoRouter = files.rest.Rest.NanoRouter;
 module.exports.Router = files.router;
+module.exports.HttpError = files.rest.Rest.HttpError;
 
 function assignTo(dst, src) {
     var keys = Object.keys(src || {});
