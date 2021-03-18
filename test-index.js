@@ -1,3 +1,5 @@
+'use strict';
+
 var rest = require('./');
 
 module.exports = {
@@ -20,7 +22,7 @@ module.exports = {
         var index = rest;
         t.equal(typeof index.Rest, 'function');
         t.equal(index.Rest, require('./rest').Rest);
-        t.equal(index.NanoRouter, index.rest.NanoRouter);
+        t.equal(index.NanoRouter, index.rest.Rest.NanoRouter);
         t.equal(index.Router, require('./router'));
         t.done();
     },
@@ -48,6 +50,20 @@ module.exports = {
     'rest creates a Router by default': function(t) {
         var app = rest();
         t.ok(app.rest.router instanceof rest.Router);
+        t.done();
+    },
+
+    'creates a NanoRouter if forced': function(t) {
+        var app = rest({ router: null });
+        app.use('/test', function(){});
+        t.ok(app.rest.router instanceof rest.NanoRouter);
+        t.done();
+    },
+
+    'rest uses the provided processRequest': function(t) {
+        var handler = function(req, res, next) { res.end('OK'); next() };
+        var app = rest(handler);
+        t.equal(app.rest.processRequest, handler);
         t.done();
     },
 }
