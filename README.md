@@ -9,8 +9,8 @@ Also perfect for embedding a web API into an existing app.
 To use as a fully routed app with middleware steps (rest_mw):
 
     const rest = require('microrest');
-    const mw = require('microrest/mw');
-    const Router = require('microrest/router');
+    const mw = rest.mw;
+    const Router = rest.Router;
 
     const app = rest({ router: new Router() });
     app.use(mw.mwParseQuery);
