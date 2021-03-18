@@ -157,7 +157,7 @@ A router used by `Rest` needs to support the api
 router.js
 =========
 
-    const Router = require('microrest/router');
+    const Router = require('microrest').Router;
     const router = new Router();
 
 `router` is a full-featured middleware engine:  it routes and runs middleware steps,
@@ -232,7 +232,7 @@ mw.js
 
 `mw` provides middleware helper functions.
 
-    const mw = require('microrest/mw');
+    const mw = require('microrest').mw;
 
 ### mw.warn( )
 
@@ -292,6 +292,7 @@ See buildParseQuery.
 Change Log
 ==========
 
+- 0.8.0 - export all functionality by default via `index.js`
 - 0.7.2 - fix NanoRouter 'post' step
 - 0.7.1 - fix to work on node-v0.7, avoid Buffer deprecation warning
 - 0.7.0 - `app.close()` method
