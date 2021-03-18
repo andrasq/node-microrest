@@ -10,7 +10,7 @@ var https = require('https');
 var net = require('net');
 var events = require('events');
 
-var rest = require('./');
+var rest = require('./rest');
 var Rest = rest.Rest;
 
 var setImmediate = eval('global.setImmediate || function(fn, a, b, c) { process.nextTick(function() { fn(a, b, c) }) }');
