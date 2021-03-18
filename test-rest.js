@@ -608,7 +608,18 @@ module.exports = {
                 req.emit('end');
             },
 
-            'should gather buffers': function(t) {
+            'should gather buffer from 1 chunks': function(t) {
+                var req = this.req;
+                Rest.readBody(req, {}, function(err, body) {
+                    t.equal(body.toString(), 'chunk1');
+                    t.equal(req.body, body);
+                    t.done();
+                })
+                req.emit('data', fromBuf('chunk1'));
+                req.emit('end');
+            },
+
+            'should gather buffer from 2 chunks': function(t) {
                 var req = this.req;
                 Rest.readBody(req, {}, function(err, body) {
                     t.ok(Buffer.isBuffer(body));
@@ -618,6 +629,20 @@ module.exports = {
                 })
                 req.emit('data', fromBuf('chunk1'));
                 req.emit('data', fromBuf('chunk2'));
+                req.emit('end');
+            },
+
+            'should gather buffer from 3 chunks': function(t) {
+                var req = this.req;
+                Rest.readBody(req, {}, function(err, body) {
+                    t.ok(Buffer.isBuffer(body));
+                    t.equal(body.toString(), 'chunk1chunk2chunk3');
+                    t.equal(req.body, body);
+                    t.done();
+                })
+                req.emit('data', fromBuf('chunk1'));
+                req.emit('data', fromBuf('chunk2'));
+                req.emit('data', fromBuf('chunk3'));
                 req.emit('end');
             },
 

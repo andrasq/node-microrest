@@ -140,11 +140,11 @@ function buildReadBody( options ) {
     var bodySizeLimit = options.bodySizeLimit || Infinity;
     return function mwReadBody( req, res, next, ctx ) {
         if (req.body !== undefined) return next(null, ctx);
-        var body = '', chunks = null, bodySize = 0, dataListener;
+        var body = '', chunk1 = null, chunks = null, bodySize = 0;
 
-        req.on('data', dataListener = function(chunk) {
+        req.on('data', function dataListener(chunk) {
             if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
-            else !chunks ? (chunks = chunk) : (Array.isArray(chunks)) ? chunks.push(chunk) : (chunks = new Array(chunks, chunk));
+            else !chunk1 ? (chunk1 = chunk) : chunks ? chunks.push(chunk) : (chunks = new Array(chunk1, chunk));
             if ((bodySize += chunk.length) >= bodySizeLimit) { body = ''; chunks = null; req.removeListener('data', dataListener); }
         })
         req.on('error', function(err) {
@@ -152,7 +152,7 @@ function buildReadBody( options ) {
         })
         req.on('end', function() {
             if (bodySize > bodySizeLimit) return next((new mw.HttpError(400, 'max body size exceeded')), ctx);
-            body = body || (Array.isArray(chunks) && Buffer.concat(chunks)) || chunks;
+            body = body ? body : chunks ? Buffer.concat(chunks) : chunk1 ? chunk1 : '';
             if (!body) body = (req._readableState && req._readableState.encoding) ? '' : fromBuf('');
             req.body = body;
             next(null, ctx, body);

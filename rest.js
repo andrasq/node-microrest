@@ -213,13 +213,13 @@ Rest.readBody = function readBody( req, res, next ) {
 
     req.on('data', function(chunk) {
         if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
-        else (!chunk1) ? chunk1 = chunk : (chunks) ? chunks.push(chunk) : (chunks = new Array(chunk1, chunk));
+        else !chunk1 ? (chunk1 = chunk) : chunks ? chunks.push(chunk) : (chunks = new Array(chunk1, chunk));
     })
     req.on('error', function(err) {
         next(err);
     })
     req.on('end', function() {
-        body = body || (chunks ? (chunks.length > 1 ? Buffer.concat(chunks) : chunks[0]) : chunk1 ? chunk1 : '');
+        body = body ? body : chunks ? Buffer.concat(chunks) : chunk1 ? chunk1 : '';
         if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : fromBuf('');
         req.body = body;
         next(null, body);
