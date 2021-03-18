@@ -99,6 +99,20 @@ module.exports = {
                 })
             },
 
+            'immediately runs onRequest on node-v0.8': function(t) {
+                t.unrequire('./rest');
+                var nodeVersion = process.versions.node;
+                delete process.versions.node;
+                process.versions.node = '0.8.1';
+                var Rest = require('./rest').Rest;
+                var app = new Rest();
+                var spy = t.spyOnce(app, '_onRequest');
+                app.onRequest({}, {}, noop);
+                process.versions.node = nodeVersion;
+                t.ok(spy.called);
+                t.done();
+            },
+
             'without router': {
                 'should invoke processRequest': function(t) {
                     t.stubOnce(Rest, 'readBody').yieldsAsync(null, 'mock body');
