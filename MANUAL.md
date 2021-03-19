@@ -344,20 +344,4 @@ See buildParseQuery.
 Change Log
 ==========
 
-- 0.8.1 - transfer statusCode properties onto HttpError
-- 0.8.0 - export all functionality by default via `index.js`, fix mw.sendResponse to call next()
-- 0.7.2 - fix NanoRouter 'post' step
-- 0.7.1 - fix to work on node-v0.7, avoid Buffer deprecation warning
-- 0.7.0 - `app.close()` method
-- 0.6.4 - remove mw dependency on setImmediate
-- 0.6.3 - tune parseQuery
-- 0.6.2 - fix router path lookups if have query params
-- 0.6.1 - let createHandler also accept onRequest and onError handlers directly, not just via options
-- 0.6.0 - Breaking: remove the broken `encoding` handling, make the app decode.  Now returns Buffers.
-          Fix null response handling (`null` is an object not an empty string, JSON serialize it)
-- 0.5.2 - make `null` and `undefined` return empty response bodies
-- 0.5.0 - full routing with microrest/router, full documentation, `/:*tail` matching
-- 0.4.1 - mw helper builders
-- 0.3.6 - faster repeatUntil, node-v0.10 support
-- 0.3.0 - faster runRoute
-- 0.2.0 - initial `app.onRequest` version
+[See the readme](https://github.com/andrasq/node-microrest/blob/master/README.md#change-log)

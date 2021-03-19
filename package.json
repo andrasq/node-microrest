@@ -7,8 +7,8 @@
   "license": "Apache-2.0",
   "author": "Andras",
   "repository": { "type": "git", "url": "git://github.com/andrasq/node-microrest" },
-  "readme": "see README.md and MANUAL.md",
-  "files": ["README.md", "MANUAL.md", "index.js", "rest.js", "router.js", "mw.js"],
+  "readme": "see README.md and MANUAL.md in the repo",
+  "files": ["README.md", "index.js", "rest.js", "router.js", "mw.js"],
 
   "scripts": {
     "pretest": "qnit --version || npm install qnit",
