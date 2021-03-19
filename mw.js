@@ -38,6 +38,11 @@ var nextTick = eval('nodeVersion >= 4 ? process.nextTick : global.setImmediate |
 function HttpError( statusCode, debugMessage, details ) {
     var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Error'));
     err.statusCode = statusCode || 500;
+    if (typeof statusCode === 'number') err.statusCode = statusCode;
+    else if (statusCode) {
+        Object.keys(statusCode).forEach(function(k) { err[k] = statusCode[k] });
+        err.statusCode = statusCode.statusCode || 500;
+    }
     err.debug = debugMessage;
     err.details = details;
     return err;

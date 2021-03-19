@@ -53,6 +53,18 @@ module.exports = {
             t.equal(err.statusCode, 999);
             t.equal(err.message, '999 Internal Error');
 
+            // with an object statusCode
+            var err = new mw.HttpError({ code: 'MOCK', statusCode: 789 }, 'my message', 'mock error');
+            t.equal(err.code, 'MOCK');
+            t.equal(err.statusCode, 789);
+            t.equal(err.debug, 'my message');
+            t.equal(err.details, 'mock error');
+
+            // with an empty object statusCode
+            var err = new mw.HttpError({}, 'my error message');
+            t.equal(err.code, undefined);
+            t.equal(err.statusCode, 500);
+
             t.done();
         },
     },

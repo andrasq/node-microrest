@@ -288,7 +288,9 @@ timestamp and "microrest:".
 
 Construct a `new Error` with additional properties `statusCode`, `debug` and
 `details`.  The error `.message` is looked up from the status code, eg `404 Not Found`
-or `777 Internal Error`.
+or `777 Internal Error`.  If `statusCode` is an object, all its own properties will be
+transferred onto the error.  `statusCode` will be set in any case, either to the
+passed-in number else to its `.statusCode` object property else to `500`.
 
 ### mw.sendResponse( req, res, next, err, statusCode ,body [,headers] )
 
@@ -342,6 +344,7 @@ See buildParseQuery.
 Change Log
 ==========
 
+- 0.8.1 - transfer statusCode properties onto HttpError
 - 0.8.0 - export all functionality by default via `index.js`, fix mw.sendResponse to call next()
 - 0.7.2 - fix NanoRouter 'post' step
 - 0.7.1 - fix to work on node-v0.7, avoid Buffer deprecation warning
