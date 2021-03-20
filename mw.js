@@ -36,12 +36,11 @@ var nodeVersion = process.version.slice(1, process.version.indexOf('.'));
 var nextTick = eval('nodeVersion >= 4 ? process.nextTick : global.setImmediate || process.nextTick');
 
 function HttpError( statusCode, debugMessage, details ) {
-    var err = new Error((statusCode || 500) + ' ' + (http.STATUS_CODES[statusCode] || 'Internal Error'));
-    err.statusCode = statusCode || 500;
-    if (typeof statusCode === 'number') err.statusCode = statusCode;
-    else if (statusCode) {
+    var httpCode = Number(statusCode) || (statusCode && statusCode.statusCode);
+    var err = new Error((httpCode || 500) + ' ' + (http.STATUS_CODES[httpCode] || 'Internal Error'));
+    err.statusCode = httpCode || 500;
+    if (statusCode && typeof statusCode !== 'number') {
         Object.keys(statusCode).forEach(function(k) { err[k] = statusCode[k] });
-        err.statusCode = statusCode.statusCode || 500;
     }
     err.debug = debugMessage;
     err.details = details;
