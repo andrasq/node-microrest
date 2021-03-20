@@ -594,7 +594,7 @@ module.exports = {
         'throws on invalid json': function(t) {
             var fn = mw.buildDecodeBody();
             var req = { body: '{"a":' };
-            t.throws(function() { fn(req, {}, noop) }, /JSON/);
+            t.throws(function() { fn(req, {}, noop) }, /input/);
             t.done();
         },
 
