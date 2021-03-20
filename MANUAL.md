@@ -292,7 +292,7 @@ or `777 Internal Error`.  If `statusCode` is an object, all its own properties w
 transferred onto the error.  `statusCode` will be set in any case, either to the
 passed-in number else to its `.statusCode` object property else to `500`.
 
-### mw.sendResponse( req, res, next, err, statusCode ,body [,headers] )
+### mw.sendResponse( req, res, next, err, statusCode, body [,headers] )
 
 Send a response back to the caller.  If `err` is an object it will send an error
 response, else will set the specified headers, if any, and send the response body.
@@ -301,10 +301,14 @@ json-encoded first.
 
 `sendResponse` handles headers efficiently and is a fast, low overhead function.
 
-### mw.writeResponse( res, statusCode, body, headers )
-### mw.writeResponse( res, err )
+### mw.writeResponse( res, errOrStatusCode [,body [,headers]] )
 
-Implementation entry point for mw.sendResponse.
+Implementation entry point for mw.sendResponse, ends the request with the given status code,
+response body, and optional response headers.  Body may be a string or Buffer, else
+anything other than `undefined` will be converted to a string with JSON.stringify.
+
+If statusCode is an object will end the request with a JSON error response generated from
+the object `statusCode`, `code`, `message`, `debug` and `details` properties.
 
 ### mw.buildParseQuery( [options] )
 
@@ -347,6 +351,8 @@ Options:
     Default is the empty string `''` to decode all non-empty bodies.
 - ignoreError - do not throw on decode error, leave req.body as found.
 
+<!-- -->
+    app.use(mw.buildReadBody());
     app.use(mw.buildDecodeBody({ decoder: JSON.parse, startingWith: "{[" });
 
 ### mw.parseQuery( str )
