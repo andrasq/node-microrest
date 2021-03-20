@@ -341,11 +341,13 @@ Construct a function that decodes `req.body`.  The decoded version is placed bac
 Decode errors throw an Error to be caught by the middleware error handler.
 
 Options:
-- parse - decode function to call on non-empty body.  Default is JSON.parse.
+- decoder - decode function to call on non-empty body.  Default is `JSON.parse`.
 - startingWith - valid start characters of decodable payloads.  Do not decode if the first
     character of the body is not among them.  All characters must be explicitly listed.
     Default is the empty string `''` to decode all non-empty bodies.
 - ignoreError - do not throw on decode error, leave req.body as found.
+
+    app.use(mw.buildDecodeBody({ decoder: JSON.parse, startingWith: "{[" });
 
 ### mw.parseQuery( str )
 
