@@ -559,6 +559,104 @@ module.exports = {
             },
         },
     },
+
+    'buildDecodeBody': {
+        'returns a function that parses json req.body': function(t) {
+            var fn = mw.buildDecodeBody();
+            t.equal(typeof fn, 'function');
+            var req = { body: '{"x":1,"y":"two"}' };
+            fn(req, {}, noop);
+            t.deepEqual(req.body, { x: 1, y: 'two' });
+            t.done();
+        },
+    },
+
+    'decodeBody': {
+        'decodes valid json': function(t) {
+            var tests = [
+                ['null', null],
+                ['123', 123],
+                ['"123"', '123'],
+                ['{}', {}],
+                ['{"a":123,"b":"two"}', { a: 123, b: 'two' }],
+                ['[1,2,"3"]', [1, 2, '3']],
+            ];
+            var fn = mw.buildDecodeBody();
+
+            for (var i=0; i<tests.length; i++) {
+                var req = { body: tests[i][0] };
+                fn(req, {}, noop);
+                t.deepStrictEqual(req.body, tests[i][1]);
+            }
+            t.done();
+        },
+
+        'throws on invalid json': function(t) {
+            var fn = mw.buildDecodeBody();
+            var req = { body: '{"a":' };
+            t.throws(function() { fn(req, {}, noop) }, /JSON/);
+            t.done();
+        },
+
+        'does not throw if ignoreErrors': function(t) {
+            var fn = mw.buildDecodeBody({ ignoreErrors: true });
+            var req = { body: '{"a": invalid json' };
+            fn(req, {}, noop);
+            t.strictEqual(req.body, '{"a": invalid json');
+            t.done();
+        },
+
+        'ignores empty body': function(t) {
+            var tests = [ null, undefined, '', fromBuf('') ];
+            var fn = mw.buildDecodeBody();
+
+            var req = {};
+            for (var i=0; i<tests.length; i++) {
+                req.body = tests[i];
+                fn(req, {}, noop);
+                t.strictEqual(req.body, tests[i]);
+            }
+            t.done();
+        },
+
+        'uses specified decoder': function(t) {
+            var req = { body: 'x' };
+            var fn = mw.buildDecodeBody({ decoder: function() { return 'decoded' } });
+            fn(req, {}, noop);
+            t.equal(req.body, 'decoded');
+            t.done();
+        },
+
+        'does not decode unset body': function(t) {
+            var req = {};
+            var fn = mw.buildDecodeBody({ decoder: function() { return 'decoded' } });
+            t.ok(!('body' in req));
+            t.done();
+        },
+
+        'decodes only payload starting with the specified characters': function(t) {
+            var req = {};
+            var fn = mw.buildDecodeBody({ startingWith: '["' });
+
+            req.body = '[1,2,3]';
+            fn(req, {}, noop);
+            t.deepEqual(req.body, [1, 2, 3]);
+
+            req.body = fromBuf('[1,2,3]');
+            fn(req, {}, noop);
+            t.deepEqual(req.body, [1, 2, 3]);
+
+            req.body = '"string"';
+            fn(req, {}, noop);
+            t.strictEqual(req.body, 'string');
+
+            req.body = '{}';
+            fn(req, {}, noop);
+            t.strictEqual(req.body, '{}');
+
+            t.done();
+        },
+    }
 }
 
 function mockReq( opts ) {

@@ -23,8 +23,9 @@ var mw = module.exports = {
     runMwErrorStepsContext: runMwErrorStepsContext,
     parseQuery: parseQuery,
 
-    buildReadBody: buildReadBody,
     buildParseQuery: buildParseQuery,
+    buildReadBody: buildReadBody,
+    buildDecodeBody: buildDecodeBody,
     mwReadBody: buildReadBody(),
     mwParseQuery: buildParseQuery(),
     sendResponse: sendResponse,
@@ -163,6 +164,22 @@ function buildReadBody( options ) {
             req.body = body;
             next(null, ctx, body);
         })
+    }
+}
+
+function buildDecodeBody( options ) {
+    options = options || {};
+    var parse = options.decoder || JSON.parse;
+    var startingWith = options.startingWith || '';
+    var ignoreErrors = options.ignoreErrors;
+    return function(req, res, next) {
+        if (req.body === undefined || req.body === null || !(req.body.length > 0)) return next();
+        if (startingWith) {
+            var ch = req.body[0]; ch = typeof ch === 'number' ? String.fromCharCode(ch) : ch;
+            if (startingWith.indexOf(ch) < 0) return next();
+        }
+        try { req.body = parse(req.body) } catch (e) { if (!ignoreErrors) throw e };
+        next();
     }
 }
 

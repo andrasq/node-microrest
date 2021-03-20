@@ -335,6 +335,18 @@ Options:
 - bodySizeLimit - cap on the request size.  If the request body exceeds this many bytes,
   `next` will be called with a 400 "max body size exceeded" HttpError.
 
+### mw.buildDecodeBody( [options] )
+
+Construct a function that decodes `req.body`.  The decoded version is placed back into `req.body`.
+Decode errors throw an Error to be caught by the middleware error handler.
+
+Options:
+- parse - decode function to call on non-empty body.  Default is JSON.parse.
+- startingWith - valid start characters of decodable payloads.  Do not decode if the first
+    character of the body is not among them.  All characters must be explicitly listed.
+    Default is the empty string `''` to decode all non-empty bodies.
+- ignoreError - do not throw on decode error, leave req.body as found.
+
 ### mw.parseQuery( str )
 
 The underlying query string parser, available to parse querystring request bodies.
