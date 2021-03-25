@@ -94,6 +94,7 @@ tests or benchmarks, check out the repo from https://github.com/andrasq/node-mic
 Change Log
 ----------
 
+- 0.8.3 - speed access to req.params et al, req.destroy() if bodySizeLimit exceeded
 - 0.8.2 - fix HttpError message text, mw.buildDecodeBody
 - 0.8.1 - transfer statusCode properties onto HttpError
 - 0.8.0 - export all functionality by default via `index.js`, fix mw.sendResponse to call next()

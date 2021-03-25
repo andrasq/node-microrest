@@ -557,6 +557,20 @@ module.exports = {
                 })
                 setTimeout(function() { req.emit('error', 'mock http error'); }, 2);
             },
+
+            'should not return twice': function(t) {
+                var req = this.req;
+                var ncalls = 0;
+                mw.mwReadBody(req, {}, function(err) {
+                    ncalls += 1;
+                    t.equal(ncalls, 1);
+                    setTimeout(t.done, 5);
+                })
+                req.emit('error', new Error('mock error 1'));
+                req.emit('end');
+                req.emit('error', new Error('mock error 2'));
+                req.emit('end');
+            },
         },
     },
 
@@ -665,6 +679,7 @@ function mockReq( opts ) {
     req.setEncoding = noop;
     req.end = noop;
     req.read = noop;
+    req.destroy = function(err) { req.emit('error', err) };
     for (var k in opts) req[k] = opts[k];
     return req;
 }

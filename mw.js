@@ -32,6 +32,13 @@ var mw = module.exports = {
     writeResponse: writeResponse,
 }
 
+// speed access to our annotated properties
+http.IncomingMessage.prototype.params = http.IncomingMessage.prototype.params || undefined;
+http.IncomingMessage.prototype.body = http.IncomingMessage.prototype.body || undefined;
+http.IncomingMessage.prototype.path = http.IncomingMessage.prototype.path || undefined;
+http.IncomingMessage.prototype.query = http.IncomingMessage.prototype.query || undefined;
+http.IncomingMessage.prototype = toStruct(http.IncomingMessage.prototype);
+
 // node-v0.10 nextTick did not accept function args yet.
 var nodeVersion = process.version.slice(1, process.version.indexOf('.'));
 var nextTick = eval('nodeVersion >= 4 ? process.nextTick : global.setImmediate || process.nextTick');
@@ -147,22 +154,22 @@ function buildReadBody( options ) {
     var bodySizeLimit = options.bodySizeLimit || Infinity;
     return function mwReadBody( req, res, next, ctx ) {
         if (req.body !== undefined) return next(null, ctx);
-        var body = '', chunk1 = null, chunks = null, bodySize = 0;
+        var doneCount = 0, body = '', chunk1 = null, chunks = null, bodySize = 0;
 
         req.on('data', function dataListener(chunk) {
             if (typeof chunk === 'string') body ? body += chunk : (body = chunk);
             else !chunk1 ? (chunk1 = chunk) : chunks ? chunks.push(chunk) : (chunks = new Array(chunk1, chunk));
-            if ((bodySize += chunk.length) >= bodySizeLimit) { body = ''; chunks = null; req.removeListener('data', dataListener); }
+            if ((bodySize += chunk.length) >= bodySizeLimit) { body = ''; chunks = null;
+                var err = new mw.HttpError(400, 'max body size exceeded'); req.destroy(err); }
         })
         req.on('error', function(err) {
-            next(err, ctx);
+            if (!doneCount) (++doneCount, next(err, ctx));
         })
         req.on('end', function() {
-            if (bodySize > bodySizeLimit) return next((new mw.HttpError(400, 'max body size exceeded')), ctx);
             body = body ? body : chunks ? Buffer.concat(chunks) : chunk1 ? chunk1 : '';
             if (!body) body = (req._readableState && req._readableState.encoding) ? '' : fromBuf('');
             req.body = body;
-            next(null, ctx, body);
+            if (!doneCount) (++doneCount, next(null, ctx, body));
         })
     }
 }
@@ -232,3 +239,5 @@ function writeResponse( res, statusCode, body, headers ) {
         try { res.statusCode = scode || 200; for (var k in hdr) res.setHeader(k, hdr[k]); body != null ? res.end(body) : res.end() }
         catch (err) { return err } }
 }
+
+function toStruct(hash) { return toStruct.prototype = hash }
