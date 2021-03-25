@@ -197,14 +197,12 @@ function buildParseQuery( options ) {
         var hmark = req.url.indexOf('#', qmark + 1);
         hmark = (hmark >= 0) ? hmark : req.url.length;
         qmark = (qmark >= 0) ? qmark : hmark;
-        // TODO: req.path = req.url.slice(0, qmark);
-        // TODO: req.query = req.url.slice(qmark + 1, hmark);
+        req.path = req.url.slice(0, qmark);
+        req.query = req.url.slice(qmark + 1, hmark);
         req.params = req.params || {};
-        // TODO: if (qmark >= req.url.length) return next();
-        // TODO: var query = mw.parseQuery(req.query);
-        var query = mw.parseQuery(qmark < hmark ? req.url.slice(qmark + 1, hmark) : '');
+        var query = req.query ? mw.parseQuery(req.query) : false;
         // TODO: express sets query[k]
-        for (var k in query) req.params[k] = query[k];
+        if (query) for (var k in query) req.params[k] = query[k];
         next();
     }
 }
