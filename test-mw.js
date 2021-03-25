@@ -399,6 +399,17 @@ module.exports = {
                 t.done();
             })
         },
+
+        'should set req.path and req.query': function(t) {
+            var req = { url: '/v1/rest/call?x=1&y=two#offset' };
+            mw.buildParseQuery()(req, {}, function(err) {
+                t.ifError(err);
+                t.deepEqual(req.params, { x: 1, y: 'two' });
+                t.equal(req.path, '/v1/rest/call');
+                t.equal(req.query, 'x=1&y=two');
+                t.done();
+            })
+        },
     },
 
     'buildReadBody': {

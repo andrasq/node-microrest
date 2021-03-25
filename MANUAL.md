@@ -313,8 +313,9 @@ the object `statusCode`, `code`, `message`, `debug` and `details` properties.
 ### mw.buildParseQuery( [options] )
 
 Construct a function that will parse the query string contained in `req.url` and place
-name-value pairs into `req.params`.  Both names and values are url-decoded.  It works
-similarly to `querystring` but for common use cases is 20-40% faster.
+name-value pairs into `req.params`.  Both names and values are url-decoded.  Also sets
+`req.path` to the called route, and set `req.query` to the query string portion of the url.
+It works similarly to `querystring` but for common use cases is 20-40% faster.
 Returns a middleware step `parseQuery(req, res, next)`.
 
 Examples:
@@ -322,6 +323,14 @@ Examples:
     "a=1&b=two" => { a: '1', b: 'two' }   // values gathered as strings
     "a&b"       => { a: 1, b: 1 }         // missing values set to Number(1)
     "a&a=&a=2"  => { a: [ 1, '', '2' ] }  // repeated values gathered into an array
+
+
+    // req.url == '/v1/rest/call?x=1&y=two#offset'
+    mw.buildParseQuery(req, res, function() {
+        // req.params == { x: '1', y: 'two' }
+        // req.path == "/v1/rest/call"
+        // req.query == "x=1&y=two"
+    })
 
 ### mw.buildReadBody( [options] )
 
