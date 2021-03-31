@@ -220,7 +220,7 @@ function writeResponse( res, statusCode, body, headers ) {
 // TODO: also look up message in http.STATUS_CODES[err.code || statusCode]
         body = { error: '' + (err.code || statusCode), message: '' + (err.message || 'Internal Error'), debug: '' + (err.debug || '') };
         if (err.details) body.details = '' + (err.details);
-        body = JSON.stringify(body);
+        body = JSON.stringify(body, null, 2);
         headers = undefined;
     }
     else if (typeof body === 'string' || (body && body.constructor === String) || Buffer.isBuffer(body)) body = body;
