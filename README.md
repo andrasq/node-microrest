@@ -94,6 +94,7 @@ tests or benchmarks, check out the repo from https://github.com/andrasq/node-mic
 Change Log
 ----------
 
+- 0.9.1 - pretty-print error responses, handle path-not-routed errors with the configured mw
 - 0.9.0 - have parseQuery also set `req.path` and `req.query`
 - 0.8.3 - speed access to req.params et al, req.destroy() if bodySizeLimit exceeded
 - 0.8.2 - fix HttpError message text, mw.buildDecodeBody

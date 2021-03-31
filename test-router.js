@@ -498,6 +498,16 @@ module.exports = {
                     t.done();
                 })
             },
+
+            'should run post step after not-routed error': function(t) {
+                this.installRoutes();
+                var calls = this.calls;
+                this.req.url = '/not_routed_path';
+                this.router.runRoute({}, this.req, {}, function(err) {
+                    t.contains(calls, ['err1', 'err2', 'post1', 'post2']);
+                    t.done();
+                })
+            },
         },
 
         'mw exceptions': {
