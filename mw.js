@@ -33,6 +33,7 @@ var mw = module.exports = {
 }
 
 // speed access to our annotated properties
+http.IncomingMessage.prototype._route = http.IncomingMessage.prototype._route || undefined;
 http.IncomingMessage.prototype.params = http.IncomingMessage.prototype.params || undefined;
 http.IncomingMessage.prototype.body = http.IncomingMessage.prototype.body || undefined;
 http.IncomingMessage.prototype.path = http.IncomingMessage.prototype.path || undefined;

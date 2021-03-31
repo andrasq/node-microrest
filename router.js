@@ -67,7 +67,7 @@ Router.prototype.deleteRoute = function deleteRoute( path, method ) {
     if (this.rexmap[path]) delete this.rexmap[path].methods[method];
 }
 
-Router.prototype.getRoute = function getRoute( path, method, route ) {
+Router.prototype.getRoute = function getRoute( path, method ) {
     var mw, mark;
 
     if (!path) return null;                             // path is required
