@@ -94,8 +94,8 @@ if (cluster.isMaster) {
         // 20.3k/s 182us
         servers.express = frameworks.express.pkg();
         // NOTE: disable 'etag' and 'x-powered-by', huge performance hit (esp etag)
-        servers.express.disable('etag');
-        servers.express.disable('x-powered-by');
+        // servers.express.disable('etag');
+        // servers.express.disable('x-powered-by');
         servers.express.listen(frameworks.express.port);
         servers.express.use(readBody);
         servers.express.get(path1, function(req, res, next) { res.status(200).send(response1); next(); })
