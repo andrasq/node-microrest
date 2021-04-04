@@ -33,6 +33,8 @@ details.
 `app.get(path, mw)` and the other http methods define the middleware step(s) implementing
 the named http route.  The route is registered with `router.setRoute(path, 'GET', mw)`.
 `mw` may be a single middleware function `mw(req, res, next)` or an array of such.
+`app.setRoute(path, method, mw)` is a programmable way to define http methods; e.g.
+`app.get(path, mw)` is the same as `app.setRoute(path, 'GET', mw)`.
 
 The rest calls are run by the middleware in the order:  `pre, use, [mw], post`.  The `pre`
 steps are run before the request is read, decoded or routed.  The `use` steps are run to
@@ -43,7 +45,8 @@ Errors thrown in the post steps are reported to the `onError` app option or logg
 the console.
 
 The options to `rest()` are the same as described under `new rest.Rest()` below,
-except that if the options do not include a router, a rest.Router will be used.
+except that if the options do not include a router, a rest.Router will be used
+(instead of the Rest default NanoRouter).
 
     const rest = require('microrest');
     const app = rest();
