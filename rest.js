@@ -38,9 +38,10 @@ function createHandler( options ) {
     var httpMethods = [ 'options', 'get', 'head', 'post', 'put', 'delete', 'trace', 'connect', 'patch' ]
     function useRouter() { return rest.router ? rest.router : rest.router = new Rest.NanoRouter() }
     handler.use = function use(mw) { typeof mw === 'string' ? useRouter().setRoute(arguments[0], arguments[1]) : useRouter().setRoute(mw.length === 4 ? 'err' : 'use', mw); }
+    handler.setRoute = function setRoute(path, method, mw) { useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs([], arguments, 2)) };
     httpMethods.forEach(function(method) {
-        var fn = function( path, mw ) { useRouter().setRoute(path, method.toUpperCase(), sliceMwArgs(new Array(), arguments, 1)) };
-        // NOTE: node-v0.7 and older cannot delete fn.name, cannot redefine fn.name
+        var fn = function(path, mw) { handler.setRoute(path, method, sliceMwArgs(new Array(), arguments, 1)) };
+        // NOTE: node-v0.7 and older cannot delete fn.name, cannot change fn.name, but can defineProperty
         handler[method] = Object.defineProperty(fn, 'name', { value: method });
     })
     handler.del = handler.delete;

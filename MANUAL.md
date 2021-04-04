@@ -83,8 +83,10 @@ The app has properties
 The app has methods
 - `app.use(func)` - mw routing method.  Calling app.use switches to running in routed mode,
   `processRequest` will not be called.  A four-argument function is used as the error handler,
-  else as the pre-middleware step.  The router used if not provided is the built-in `rest.NanoRouter`.
+   else as the pre-middleware step.  The router used if not provided is the built-in `rest.NanoRouter`.
 - `app.get`, `app.post`, `app.put`, `app.del`, etc - mw routing methods
+- `app.setRoute(path, method, mwStep)` - exposes the rest router setRoute() endpoint.
+   See `NanoRouter` and `router.js` below
 - `app.onError(err, req, res, next)` - function called if the route handler encounters an error
    not handled by the `'err'` step.
 - `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the request
