@@ -19,12 +19,13 @@ module.exports = {
 
     'constructor': {
         'should not require options': function(t) {
+            // re-read ./mw and ./router because some of the other files may reload mw
+            // making the functions in the various files not be identical
+            t.unrequire('./mw');
+            t.unrequire('./router');
+            var mw = require('./mw');
+            var Router = require('./router');
             var router = new Router();
-            // NOTE: if tests are run in *.js alphabetical order router.mw
-            // will have been re-required and the router.mw* functions will
-            // not be the identical mw.mw* functions we loaded.
-            // t.equal(router.readBody, mw.mwReadBody);
-            // Note that order that `npm test` runs the files works.
             t.equal(router.readBody, mw.mwReadBody);
             t.equal(router.runMwSteps, mw.runMwSteps);
             t.equal(router.runMwErrorSteps, mw.runMwErrorSteps);
