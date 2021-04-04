@@ -44,6 +44,17 @@ thrown in any of the pre-, use- or mw-steps run the `err` steps then the `post` 
 Errors thrown in the post steps are reported to the `onError` app option or logged to
 the console.
 
+        +-------+    +-------------+    +------------+    +----------------+
+        | pre:  |----| use: route, |----| user       |----| post: logging, |
+        | setup |    |      decode |    | middleware |  --|       cleanup  |
+        +-------+    +-------------+    +------------+  | +----------------+
+              |                  |        |             |
+              |                  |        |  +-------+  |
+              |                  |        ---| err:  |---
+              |                  ------------|       |
+              -------------------------------|       |
+                                             +-------+
+
 The options to `rest()` are the same as described under `new rest.Rest()` below,
 except that if the options do not include a router, a rest.Router will be used
 (instead of the Rest default NanoRouter).
