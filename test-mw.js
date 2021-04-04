@@ -35,13 +35,23 @@ module.exports = {
         'should encode statusCode, message, debug': function(t) {
             var err = new mw.HttpError(404, 'my error message');
             t.equal(err.statusCode, 404);
-            t.equal(err.message, '404 Not Found');
+            t.contains(err.message, '404 Not Found');
             t.equal(err.debug, 'my error message');
+
+            // Http Error
+            var err = new mw.HttpError(456, 'my message');
+            t.equal(err.statusCode, 456);
+            t.equal(err.message, '456 Http Error: my message');
+
+            // Internal Error
+            var err = new mw.HttpError(567, 'oops message');
+            t.equal(err.statusCode, 567);
+            t.equal(err.message, '567 Internal Error: oops message');
 
             // without params
             var err = new mw.HttpError();
             t.equal(err.statusCode, 500);
-            t.equal(err.message, '500 Internal Error');
+            t.equal(err.message, '500 Internal Server Error');
 
             // with just a status code
             var err = new mw.HttpError(401);
@@ -59,7 +69,7 @@ module.exports = {
             t.equal(err.statusCode, 789);
             t.equal(err.debug, 'my message');
             t.equal(err.details, 'mock error');
-            t.equal(err.message, '789 Internal Error');
+            t.equal(err.message, '789 Internal Error: my message');
 
             // with an empty object statusCode
             var err = new mw.HttpError({}, 'my error message');
@@ -304,7 +314,8 @@ module.exports = {
             var spyEnd = t.spyOnce(this.res, 'end');
             mw.sendResponse(this.req, this.res, noop, new mw.HttpError(404, 'my page not found', 'check again'));
             t.equal(this.res.statusCode, 404);
-            t.deepEqual(JSON.parse(spyEnd.args[0]), { error: 404, message: '404 Not Found', debug: 'my page not found', details: 'check again' });
+            t.deepEqual(JSON.parse(spyEnd.args[0]),
+                { error: 404, message: '404 Not Found: my page not found', debug: 'my page not found', details: 'check again' });
 
             t.done();
         },

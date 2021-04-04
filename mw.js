@@ -44,16 +44,11 @@ http.IncomingMessage.prototype = toStruct(http.IncomingMessage.prototype);
 var nodeVersion = process.version.slice(1, process.version.indexOf('.'));
 var nextTick = eval('nodeVersion >= 4 ? process.nextTick : global.setImmediate || process.nextTick');
 
-function HttpError( statusCode, debugMessage, details ) {
-    var httpCode = Number(statusCode) || (statusCode && statusCode.statusCode);
-    var err = new Error((httpCode || 500) + ' ' + (http.STATUS_CODES[httpCode] || 'Internal Error'));
-    err.statusCode = httpCode || 500;
-    if (statusCode && typeof statusCode !== 'number') {
-        Object.keys(statusCode).forEach(function(k) { err[k] = statusCode[k] });
-    }
-    err.debug = debugMessage;
-    err.details = details;
-    return err;
+function HttpError( statusCode, message, details ) {
+    var httpCode = Number(statusCode) || (statusCode && statusCode.statusCode) || 500;
+    var errorName = (http.STATUS_CODES[httpCode] || (httpCode >= 500 ? 'Internal Error' : 'Http Error'));
+    return Object.assign(new Error(httpCode + ' ' + errorName + (message > '' ? ': ' + message : '')),
+        statusCode ? statusCode : {}, { statusCode: httpCode, debug: message}, details !== undefined ? { details: details } : {});
 }
 
 // print a warning to stderr

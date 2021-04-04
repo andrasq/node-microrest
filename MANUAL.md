@@ -288,7 +288,7 @@ timestamp and "microrest:".
 
 Construct a `new Error` with additional properties `statusCode`, `debug` and
 `details`.  The error `.message` is looked up from the status code, eg `404 Not Found`
-or `777 Internal Error`.  If `statusCode` is an object, all its own properties will be
+or `456 Http Error`.  If `statusCode` is an object, all its own properties will be
 transferred onto the error.  `statusCode` will be set in any case, either to the
 passed-in number else to its `.statusCode` object property else to `500`.
 

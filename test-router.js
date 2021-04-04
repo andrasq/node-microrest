@@ -344,7 +344,7 @@ module.exports = {
             this.router.runRoute({}, this.req, {}, function(err) {
                 t.ok(err);
                 t.equal(err.statusCode, 404);
-                t.equal(err.message, '404 Not Found');
+                t.contains(err.message, '404 Not Found');
                 t.done();
             })
         },
