@@ -1,7 +1,7 @@
 {
   "name": "microrest",
   "version": "0.9.1",
-  "description": "tiny embeddable REST web framework",
+  "description": "tiny, quick, embeddable REST web framework",
   "keywords": ["micro", "nano", "framework", "middleware", "REST", "embeddable", "fast"],
   "main": "index.js",
   "license": "Apache-2.0",
@@ -12,7 +12,7 @@
 
   "scripts": {
     "pretest": "qnit --version || npm install qnit",
-    "test": "qnit -t 10000 test-index.js test-rest.js test-router.js test-mw.js || false",
+    "test": "qnit -t 2000 test-index.js test-rest.js test-router.js test-mw.js || false",
     "coverage": "nyc -r text -r lcov npm test",
     "clean": "rm -rf .nyc_output/ coverage/"
   }
