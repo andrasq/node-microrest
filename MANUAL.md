@@ -63,8 +63,8 @@ except that if the options do not include a router, a rest.Router will be used
     const app = rest();
 
     const mw = rest.mw;
-    app.use(mw.mwParseQuery);
-    app.use(mw.mwReadBody);
+    app.use('use', mw.mwParseQuery);
+    app.use('use', mw.mwReadBody);
     app.get('/hello/:arg1/:arg2', (req, res, next) => {
         // request body available in req.body
         // query params and arg1, arg2 available in req.params
@@ -229,6 +229,8 @@ with hooks to customize routing and error handling.
 Options:
 - readBody - function to gather the request and set `req.body`.  Default is `mw.mwReadBody`.
   This function is invoked if `req.body` is not set after the `use` steps run.
+  NOTE: this is a 4-argument function, and care must be taken to not mis-identify it as
+  an error handler.
 
 ### router.setRoute( path, method, steps )
 

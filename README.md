@@ -12,8 +12,8 @@ To use as a fully routed app with middleware steps and route params (rest_mw):
     const mw = rest.mw;
 
     const app = rest();
-    app.use(mw.mwParseQuery);
-    app.use(mw.mwReadBody);
+    app.use('use', mw.mwParseQuery);
+    app.use('use', mw.mwReadBody);
     app.get('/hello/:arg1/:arg2', (req, res, next) => {
         // request body available in req.body
         // query params and arg1, arg2 available in req.params

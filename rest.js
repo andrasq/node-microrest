@@ -2,7 +2,7 @@
  * minimal tiny rest server
  * https://github.com/andrasq/node-microrest
  *
- * Copyright (C) 2018-2021 Andras Radics
+ * Copyright (C) 2018-2022 Andras Radics
  * Licensed under the Apache License, Version 2.0
  *
  * 2018-04-12 - AR.
@@ -234,6 +234,4 @@ Rest._sendErrorResponse = function _sendErrorResponse( res, err ) {
 
 Rest.prototype = toStruct(Rest.prototype);
 
-function toStruct( x ) {
-    return toStruct.prototype = x;
-}
+function toStruct( x ) { return toStruct.prototype = x }
