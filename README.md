@@ -94,6 +94,7 @@ tests or benchmarks, check out the repo from https://github.com/andrasq/node-mic
 Change Log
 ----------
 
+- 0.9.3 - run routes with a series of static functions
 - 0.9.2 - expose `app.setRoute()` along with app.get, app.post etc, change `mwReadBody` function signature to
           not appear to be a 4-argument error handler middleware step, fix benchmark typo
 - 0.9.1 - pretty-print error responses, handle path-not-routed errors with the configured mw
