@@ -49,10 +49,18 @@ var response1 = new Array(201).join('y');
 
 if (cluster.isMaster) {
 
-    // master runs the servers, worker runs the benchmarks
-    cluster.fork();
-
     var servers = {};
+
+    // master runs the servers, worker runs the benchmarks
+    var child = cluster.fork();
+    child.on('disconnect', function() {
+        console.log("AR: Done.");
+        for (var name in servers) {
+            try { servers[name].close() } catch (err) {
+                console.log("cannot close %s:", name, err.message, Object.keys(servers[name]));
+            }
+        }
+    })
 
     function noop(){}
     function noopStep(req, res, next){ setImmediate(next) }
@@ -96,7 +104,8 @@ if (cluster.isMaster) {
         // NOTE: disable 'etag' and 'x-powered-by', huge performance hit (esp etag)
         // servers.express.disable('etag');
         // servers.express.disable('x-powered-by');
-        servers.express.listen(frameworks.express.port);
+        var expressServer = servers.express.listen(frameworks.express.port);
+        servers.express.close = function() { expressServer.close() }
         servers.express.use(readBody);
         servers.express.get(path1, function(req, res, next) { res.status(200).send(response1); next(); })
         // 22k/s wrk -c8, -c100
@@ -137,7 +146,8 @@ if (cluster.isMaster) {
         servers.connect.use(readBody);
         servers.connect.use(handleError);
         servers.connect.use(path1, sendResponse);
-        http.createServer(servers.connect).listen(frameworks.connect.port);
+        var httpServer = http.createServer(servers.connect).listen(frameworks.connect.port);
+        servers.connect.close = function () { httpServer.close() }
     }
 
     if (frameworks.rest_mw) {
@@ -243,9 +253,9 @@ else {
     var verifyResponse = true;
     var parallelCallCount = 100;
 
-    setTimeout(setupTests, 400);
+    setTimeout(setUpTests, 400);
 
-    function setupTests() {
+    function setUpTests() {
         for (var name in frameworks) {
             agents[name] = (name === 'qrpc')
                 ? frameworks.qrpc.pkg.connect(frameworks[name].port, 'localhost', confirmConnect)
@@ -341,9 +351,6 @@ else {
             function(next) { setTimeout(next, 500) },
             function(next) {
                 console.log("\nAR: bursts of %d parallel calls\n", parallelCallCount);
-                next();
-            },
-            function(next) {
                 qtimeit.bench.timeGoal = .4;
                 qtimeit.bench.visualize = true;
                 qtimeit.bench.showRunDetails = false;
@@ -368,10 +375,12 @@ else {
             function(next) { setTimeout(qtimeit.bench, 50, serialTests, next) },
             function(next) { setTimeout(qtimeit.bench, 50, serialTests, next) },
             function(next) {
-                console.log("AR: Done.");
                 next();
             },
-        ]);
+        function(err) {
+            // disconnect child process to let parent know all done
+            process.disconnect();
+        });
 
 /**
         if (1) {
