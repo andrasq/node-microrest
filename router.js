@@ -30,7 +30,8 @@ function Router( options ) {
     this.rexmap = {};                   // matched routes, by path
     this.HttpError = mw.HttpError;
     var readBody = options.readBody;
-    this.readBody = readBody ? function _readBody(req, res, next, ctx) { readBody(req, res, function(err) { next(err, ctx) }) } : mw.mwReadBody;
+    this.readBody = !readBody ? mw.mwReadBody
+        : function _readBody(req, res, next, ctx) { readBody(req, res, function(err) { next(err, ctx) }) }
     this.runMwSteps = options.runMwSteps || mw.runMwSteps;
     this.runMwStepsContext = options.runMwStepsContext || mw.runMwStepsContext;
     this.runMwErrorSteps = options.runMwErrorSteps || mw.runMwErrorSteps;
@@ -96,7 +97,8 @@ function _tryCb(cb, err, ret) { try { cb(err, ret) } catch (e) { _reportCbError(
 Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
     var context = { self: this, rest: rest, req: req, res: res, callback: callback, ix: 0, steps: null };
     runMwChain(context);
-
+}
+    // pass the context along the middleware chain, to not have to bind all steps to each calling context
     function runMwChain(ctx) {
         // pre steps are always run, before call is routed
         ctx.self.runMwStepsContext(ctx.self.steps.pre, ctx, runDoRouteStep);
@@ -112,12 +114,13 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         // read body if not already read
         // TODO: do not auto-read, make a some mw step read
         // TODO: change readBody to return the context
+        // TODO: should work with mw that read the body as part of the mw chain, not just in 'pre'
         (ctx.req.body !== undefined) ? runMwRoute(null, ctx) : ctx.self.readBody(ctx.req, ctx.res, runMwRoute, ctx);
     }
     function runMwRoute(err, ctx) {
         // TODO: FIXME: always run the 'use' steps, do not combine with routed path
         // the call middleware stack includes the relevant 'use' and route steps
-        err ? runErrorRoute(err, ctx) : ctx.self.runMwStepsContext(req._route.mw || req._route, ctx, runErrorRoute);
+        err ? runErrorRoute(err, ctx) : ctx.self.runMwStepsContext(ctx.req._route.mw || ctx.req._route, ctx, runErrorRoute);
     }
     function runErrorRoute(err1, ctx) {
         ctx.req.resume();
@@ -135,7 +138,7 @@ Router.prototype.runRoute = function runRoute( rest, req, res, callback ) {
         if (err3 && ctx.err1 && ctx.rest && typeof ctx.rest.reportError === 'function') ctx.rest.reportError(err3, 'post-mw error');
         _tryCb(ctx.callback, ctx.err1 || err3 || null);
     }
-}
+//}
 
 Router.prototype.makeCapturingRegex = function makeCapturingRegex( rex, path ) {
     var patt = this._buildCapturingRegex(path);
