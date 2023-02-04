@@ -102,9 +102,9 @@ The app has methods
 - `app.setRoute(path, method, mwStep)` - exposes the rest router setRoute() endpoint.
    See `NanoRouter` and `router.js` below
 - `app.onError(err, req, res, next)` - function called if the route handler encounters an error
-   not handled by the `'err'` step.
+   not handled by the `'err'` step.  The default ends the call with a 500 http status code.
 - `app.listen([portOrOptions], [callback])` - invoke rest.createServer with this app as the request
-   listener.  Port can be numeric, or can be createServer options.
+   listener.  Port can be numeric, or can be createServer options.  Returns the http server used.
 - `app.close([callback])` - stop listening for more requests
 
 The options are described under `new rest.Rest()` below.

@@ -153,6 +153,8 @@ if (cluster.isMaster) {
     if (frameworks.rest_mw) {
         // 65k/s 58.2us
         // R2600X @4.0g: 55k/s
+        // i6700K @4.0g: 80k/s (v8.11.1)
+        // R5600X @4.9g: 99k/s (v8.11.1)
         var router = new Router();
         var app = servers.rest_mw = rest({ port: frameworks.rest_mw.port, router: router });
         // app.use('before', function(req, res, next) { req.setEncoding('utf8'); next() });
@@ -269,53 +271,53 @@ else {
             socket.setNoDelay();
             console.log("AR: qrpc client connected");
         }
-    }
 
-    function buildTestFunction( name, port, callCount ) {
-        var uri = {
-            agent: agents[name],
-            //keepAlive: true,
-            host: 'localhost',
-            port: port,
-            method: 'GET',
-            path: path1,
-        };
+        function buildTestFunction( name, port, callCount ) {
+            var uri = {
+                agent: agents[name],
+                //keepAlive: true,
+                host: 'localhost',
+                port: port,
+                method: 'GET',
+                path: path1,
+            };
 
-        var responseIndex = name === 'qrpc' ? 1 : 2;
-        var makeCall = name === 'qrpc'
-            ? function(cb) { uri.agent.call(uri.path, null, cb) }
-            : function(cb) { microreq(uri, request1, cb) }
+            var responseIndex = name === 'qrpc' ? 1 : 2;
+            var makeCall = name === 'qrpc'
+                ? function(cb) { uri.agent.call(uri.path, null, cb) }
+                : function(cb) { microreq(uri, request1, cb) }
 
-        function makeQrpcCb(cb) {
-            return function(err, ret) { cb(err, {}, ret) }
-        }
+            function makeQrpcCb(cb) {
+                return function(err, ret) { cb(err, {}, ret) }
+            }
 
-        if (name === 'qrpc' && callCount === 1) return function(callback ) {
-            agents.qrpc.call(path1, request1, function(err, ret) {
-                doVerifyResponse(err, ret);
-                callback();
-            })
-        }
+            if (name === 'qrpc' && callCount === 1) return function(callback ) {
+                agents.qrpc.call(path1, request1, function(err, ret) {
+                    doVerifyResponse(err, ret);
+                    callback();
+                })
+            }
 
-        return function(callback) {
-            var ncalls = callCount, ndone = 0, mute = false;
-            for (var i=0; i<ncalls; i++) makeCall(onBack);
-            function onBack(err, res, body) {
-                // FIXME: mute is false on every callback, prints a gazillion lines if ECONNREFUSED
-                if (err) { if (false && !mute) console.log("AR: call err", mute, err); mute = true }
-                else doVerifyResponse(err, arguments[responseIndex]);
-                if (++ndone === ncalls) {
-                    setImmediate(callback);
+            return function(callback) {
+                var ncalls = callCount, ndone = 0, mute = false;
+                for (var i=0; i<ncalls; i++) makeCall(onBack);
+                function onBack(err, res, body) {
+                    // FIXME: mute is false on every callback, prints a gazillion lines if ECONNREFUSED
+                    if (err) { if (false && !mute) console.log("AR: call err", mute, err); mute = true }
+                    else doVerifyResponse(err, arguments[responseIndex]);
+                    if (++ndone === ncalls) {
+                        setImmediate(callback);
+                    }
                 }
             }
-        }
 
-        function doVerifyResponse(err, rawBody) {
-            // if (err) { console.log("AR: call err", err); process.exit(); }
-            if (err) return;
-            if (verifyResponse && String(rawBody) != response1 && JSON.parse(rawBody) != response1) {
-                console.log("AR: wrong response:", String(rawBody), response1);
-                throw new Error("wrong response")
+            function doVerifyResponse(err, rawBody) {
+                // if (err) { console.log("AR: call err", err); process.exit(); }
+                if (err) return;
+                if (verifyResponse && String(rawBody) != response1 && JSON.parse(rawBody) != response1) {
+                    console.log("AR: wrong response:", String(rawBody), response1);
+                    throw new Error("wrong response")
+                }
             }
         }
     }
@@ -323,12 +325,14 @@ else {
     function runSuite() {
         console.log("AR: runSuite: req = %sB, res = %sB", request1.length, response1.length);
 
-        var cmdline = 'sleep .5 ; wrk -d2s -t2 -c50 http://localhost:%d/test1 | grep ^Requests/sec';
+        var cmdline = 'sleep .2 ; wrk -d1s -t2 -c50 http://localhost:%d/test1 | grep ^Requests/sec';
+        // `ab` (Apache Bench) is much slower than `wrk` and caps throughput at 48k/s
         //var cmdline = 'sleep .5 ; ab -k -c100 -t1 http://localhost:%d/test1 2>&1 | grep ^Requests';
 
         qibl.runSteps([
             function(next) {
 //return next();
+                console.log("AR: wrk throughput");
                 qibl.forEachCb(Object.keys(frameworks), function(done, name) {
                     if (name === 'qrpc') return done();
                     if (!frameworks[name].pkg) return done();
@@ -351,7 +355,7 @@ else {
                 }, next);
             },
 
-            function(next) { setTimeout(next, 500) },
+            function(next) { setTimeout(next, 200) },
             function(next) {
                 console.log("\nAR: bursts of %d parallel calls\n", parallelCallCount);
                 qtimeit.bench.timeGoal = .4;
@@ -366,20 +370,15 @@ else {
             function(next) { setTimeout(qtimeit.bench, 50, parallelTests, next) },
             function(next) { setTimeout(qtimeit.bench, 50, parallelTests, next) },
 
-            function(next) { setTimeout(next, 500) },
+            function(next) { setTimeout(next, 200) },
             function(next) {
                 console.log("\nAR: sequential calls:\n");
-                next();
-            },
-            function(next) {
                 qtimeit.bench.opsPerTest = 1;           // 1 http call in per test
                 next();
             },
             function(next) { setTimeout(qtimeit.bench, 50, serialTests, next) },
             function(next) { setTimeout(qtimeit.bench, 50, serialTests, next) },
-            function(next) {
-                next();
-            },
+        ],
         function(err) {
             // disconnect child process to let parent know all done
             process.disconnect();

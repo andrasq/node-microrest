@@ -2,7 +2,7 @@
  * minimal tiny rest server
  * https://github.com/andrasq/node-microrest
  *
- * Copyright (C) 2018-2022 Andras Radics
+ * Copyright (C) 2018-2023 Andras Radics
  * Licensed under the Apache License, Version 2.0
  *
  * 2018-04-12 - AR.
@@ -220,6 +220,7 @@ Rest.readBody = function readBody( req, res, next ) {
         next(err);
     })
     req.on('end', function() {
+        //  node-v0.6 does not have Buffer.concat
         body = body ? body : chunks ? Buffer.concat(chunks) : chunk1 ? chunk1 : '';
         if (body.length === 0) body = (req._readableState && req._readableState.encoding) ? '' : fromBuf('');
         req.body = body;
