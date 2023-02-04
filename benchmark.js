@@ -117,15 +117,15 @@ if (cluster.isMaster) {
         // 22k/s wrk .status.send, 44k/s wrk .end
     }
 
-    if (frameworks.fastify && frameworks.fastify.pkg) {
-        // R2600X @4.0g: 33k/s
-        servers.fastify = frameworks.fastify.pkg();
-        servers.fastify.listen(frameworks.fastify.port);
-        servers.fastify.use(readBody);
-        // NOTE: fastify mw steps are not passed a `next`, but can attach mw steps to a specific route
-        servers.fastify.get(path1, function(req, res) { res.statusCode = 200; res.send(response1); });
-        // NOTE: res.send is not a function in mw use() steps, only in get/post/del etc
-        //servers.fastify.use(path1, function(req, res, next) { res.statusCode = 200; res.end(response1); next(); });
+    if (frameworks.qrpc) {
+        // 145k/s, <33us
+        servers.qrpc = frameworks.qrpc.pkg.createServer(function(socket) {
+            socket.setNoDelay();
+        });
+        servers.qrpc.listen(frameworks.qrpc.port, function(err, ret) {
+            console.log("AR: qrpc server listening on", frameworks.qrpc.port);
+        });
+        servers.qrpc.addHandler(path1, function(req, res, next) { next(null, response1) });
     }
 
     if (frameworks.restiq) {
@@ -138,16 +138,6 @@ if (cluster.isMaster) {
         //servers.restiq.get(path1, function(req, res, next) { res.end(response1); next(); })
         servers.restiq.get(path1, sendResponse);
         // 40k/s wrk -c8; 53k/s 9.1 (both res.end and sendResponse)
-    }
-
-    if (frameworks.connect) {
-        // 44.5k/s 85us
-        servers.connect = frameworks.connect.pkg();
-        servers.connect.use(readBody);
-        servers.connect.use(handleError);
-        servers.connect.use(path1, sendResponse);
-        var httpServer = http.createServer(servers.connect).listen(frameworks.connect.port);
-        servers.connect.close = function () { httpServer.close() }
     }
 
     if (frameworks.rest_mw) {
@@ -232,15 +222,25 @@ if (cluster.isMaster) {
         })
     }
 
-    if (frameworks.qrpc) {
-        // 145k/s, <33us
-        servers.qrpc = frameworks.qrpc.pkg.createServer(function(socket) {
-            socket.setNoDelay();
-        });
-        servers.qrpc.listen(frameworks.qrpc.port, function(err, ret) {
-            console.log("AR: qrpc server listening on", frameworks.qrpc.port);
-        });
-        servers.qrpc.addHandler(path1, function(req, res, next) { next(null, response1) });
+    if (frameworks.fastify && frameworks.fastify.pkg) {
+        // R2600X @4.0g: 33k/s
+        servers.fastify = frameworks.fastify.pkg();
+        servers.fastify.listen(frameworks.fastify.port);
+        servers.fastify.use(readBody);
+        // NOTE: fastify mw steps are not passed a `next`, but can attach mw steps to a specific route
+        servers.fastify.get(path1, function(req, res) { res.statusCode = 200; res.send(response1); });
+        // NOTE: res.send is not a function in mw use() steps, only in get/post/del etc
+        //servers.fastify.use(path1, function(req, res, next) { res.statusCode = 200; res.end(response1); next(); });
+    }
+
+    if (frameworks.connect) {
+        // 44.5k/s 85us
+        servers.connect = frameworks.connect.pkg();
+        servers.connect.use(readBody);
+        servers.connect.use(handleError);
+        servers.connect.use(path1, sendResponse);
+        var httpServer = http.createServer(servers.connect).listen(frameworks.connect.port);
+        servers.connect.close = function () { httpServer.close() }
     }
 }
 // end isMaster, else isWorker
