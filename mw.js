@@ -1,7 +1,7 @@
 /**
  * minimal middleware helpers
  *
- * Copyright (C) 2018-2021 Andras Radics
+ * Copyright (C) 2018-2023 Andras Radics
  * Licensed under the Apache License, Version 2.0
  */
 
@@ -149,7 +149,8 @@ function parseQuery( str ) {
 function buildReadBody( options ) {
     options = options || {};
     var bodySizeLimit = options.bodySizeLimit || Infinity;
-    return function mwReadBody( req, res, next, ctx ) {
+    return function mwReadBody( /* VARARGS to not appear to be a 4-arg error handler */ ) {
+        var req = arguments[0], res = arguments[1], next = arguments[2], ctx = arguments[3];
         if (req.body !== undefined) return next(null, ctx);
         var doneCount = 0, body = '', chunk1 = null, chunks = null, bodySize = 0;
 

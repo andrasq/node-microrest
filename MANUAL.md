@@ -229,8 +229,6 @@ with hooks to customize routing and error handling.
 Options:
 - readBody - function to gather the request and set `req.body`.  Default is `mw.mwReadBody`.
   This function is invoked if `req.body` is not set after the `use` steps run.
-  NOTE: this is a 4-argument function, and care must be taken to not mis-identify it as
-  an error handler.
 
 ### router.setRoute( path, method, steps )
 
