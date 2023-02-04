@@ -1,4 +1,4 @@
-// npm install microreq qtimeit restify@4 express qrpc connect restiq async@1 fastify
+// npm install microreq qtimeit qibl restify@4 express qrpc connect restiq fastify
 // wrk -d4s -t2 -c8 'http://localhost:1337/echo?a=1&b=2&c=3
 
 
@@ -7,8 +7,8 @@ var cluster = require('cluster');
 var child_process = require('child_process');
 var http = require('http');
 var microreq = require('microreq');
-var async = require('async');
 var qtimeit = require('qtimeit');
+var qibl = require('qibl');
 
 var rest = require('./rest');
 var mw = require('./mw');
@@ -326,14 +326,14 @@ else {
         var cmdline = 'sleep .5 ; wrk -d2s -t2 -c50 http://localhost:%d/test1 | grep ^Requests/sec';
         //var cmdline = 'sleep .5 ; ab -k -c100 -t1 http://localhost:%d/test1 2>&1 | grep ^Requests';
 
-        async.series([
+        qibl.runSteps([
             function(next) {
 //return next();
-                async.eachSeries(Object.keys(frameworks), function(name, done) {
+                qibl.forEachCb(Object.keys(frameworks), function(done, name) {
                     if (name === 'qrpc') return done();
                     if (!frameworks[name].pkg) return done();
                     var cmd = util.format(cmdline, frameworks[name].port);
-                    console.log("# %s: %s", name, cmd);
+                    console.log("\n# %s: %s", name, cmd);
                     var output = "";
                     var runTest = function(doneTest) {
                         child_process.exec(cmd, function(err, stdout, stderr) {
@@ -341,10 +341,13 @@ else {
                             doneTest(err);
                         })
                     }
-                    async.series([ runTest, runTest ], function(err) {
-                        console.log(output);
-                        done(err);
-                    });
+                    qibl.repeatFor(2, function(next) {
+                        output = '';
+                        runTest(function(err) {
+                            console.log(output.trim());
+                            next(err);
+                        })
+                    }, done);
                 }, next);
             },
 
