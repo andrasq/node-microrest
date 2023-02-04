@@ -29,7 +29,6 @@ var frameworks = {
     qrpc:    { pkg: require('qrpc'), ver: require('qrpc/package').version, port: 1341 },
 
     restiq:  { pkg: require('restiq'), ver: require('restiq/package').version, port: 1345 },
-// NOTE: rest_mw does not respond (0 calls / sec) without restiq run beforehand
     rest_mw: { pkg: require('./'), ver: require('./package').version, port: 1342 },
     rest_ha: { pkg: require('./'), ver: require('./package').version, port: 1347 },
     rest:    { pkg: require('./'), ver: require('./package').version, port: 1339 },
@@ -71,7 +70,7 @@ if (cluster.isMaster) {
         next();
     }
     function readBody( req, res, next ) {
-        if (res.body !== undefined) return next();
+        if (req.body !== undefined) return next();
 
         req.encoding = 'utf8';
         var body = '';
@@ -148,7 +147,8 @@ if (cluster.isMaster) {
         var router = new Router();
         var app = servers.rest_mw = rest({ port: frameworks.rest_mw.port, router: router });
         // app.use('before', function(req, res, next) { req.setEncoding('utf8'); next() });
-        app.use(readBody);
+        // NOTE: rest_mw must read the body in a 'pre' step, else the built-in reader will be run before the mw is run
+        app.use('pre', readBody);
         app.get('/test1', sendResponse);
         //app.get('/test1', noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, noopStep, sendResponse);
         app.listen({ port: frameworks.rest_mw.port });

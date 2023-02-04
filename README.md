@@ -12,8 +12,8 @@ To use as a fully routed app with middleware steps and route params (rest_mw):
     const mw = rest.mw;
 
     const app = rest();
-    app.use('use', mw.mwParseQuery);
-    app.use('use', mw.mwReadBody);
+    app.use('pre', mw.mwParseQuery);
+    app.use('pre', mw.mwReadBody);
     app.get('/hello/:arg1/:arg2', (req, res, next) => {
         // request body available in req.body
         // query params and arg1, arg2 available in req.params
@@ -30,7 +30,7 @@ To use as a light app with direct-mapped routes (rest_ha):
         res.end('hi back');
         next();
     })
-    const server = app.listen(1337);
+    app.listen(1337);
 
 To use as a bare-bones request handler without routed calls (rest):
 
@@ -95,7 +95,7 @@ Change Log
 ----------
 
 - 0.9.2 - expose `app.setRoute()` along with app.get, app.post etc, change `mwReadBody` function signature to
-          not appear to be a 4-argument error handler middleware step
+          not appear to be a 4-argument error handler middleware step, fix benchmark typo
 - 0.9.1 - pretty-print error responses, handle path-not-routed errors with the configured mw
 - 0.9.0 - have parseQuery also set `req.path` and `req.query`
 - 0.8.3 - speed access to req.params et al, req.destroy() if bodySizeLimit exceeded

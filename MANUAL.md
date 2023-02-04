@@ -63,8 +63,8 @@ except that if the options do not include a router, a rest.Router will be used
     const app = rest();
 
     const mw = rest.mw;
-    app.use('use', mw.mwParseQuery);
-    app.use('use', mw.mwReadBody);
+    app.use('pre', mw.mwParseQuery);
+    app.use('pre', mw.mwReadBody);
     app.get('/hello/:arg1/:arg2', (req, res, next) => {
         // request body available in req.body
         // query params and arg1, arg2 available in req.params
