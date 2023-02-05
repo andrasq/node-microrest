@@ -1,6 +1,6 @@
 microrest
 =========
-[![Build Status](https://api.travis-ci.org/andrasq/node-microrest.svg?branch=master)](https://travis-ci.org/andrasq/node-microrest?branch=master)
+[![Build Status](https://app.travis-ci.com/andrasq/node-microrest.svg?branch=master)](https://app.travis-ci.com/andrasq/node-microrest?branch=master)
 [![Coverage Status](https://coveralls.io/repos/github/andrasq/node-microrest/badge.svg?branch=master)](https://coveralls.io/github/andrasq/node-microrest?branch=master)
 
 Extremely small, extremely fast REST framework for when size and speed matter.
